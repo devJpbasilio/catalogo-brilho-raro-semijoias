@@ -1,0 +1,233 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,400;1,600&family=JetBrains+Mono:wght@400;600&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Playfair Display", ui-serif, Georgia, serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  /* Brand Color Palette - Rosa & Prata */
+  --color-brand-porcelain: #F7F0F3;
+  --color-brand-rosewood: #C4708A;
+  --color-brand-stone: #E8D5DC;
+  --color-brand-parchment: #F2E4EA;
+  --color-brand-olive: #C4708A;
+  --color-brand-accent-light: #F9E0E8;
+  --color-brand-accent-hover: #8B3A55;
+
+  /* Natural Tones Overrides mapped to the new Rosa & Prata colors to keep existing Tailwind classes beautiful and integrated! */
+  --color-amber-50: #F9E0E8;
+  --color-amber-100: #F2E4EA;
+  --color-amber-200: #E8D5DC;
+  --color-amber-300: #C4708A;
+  --color-amber-400: #C4708A;
+  --color-amber-500: #C4708A;
+  --color-amber-600: #8B3A55;
+  --color-amber-700: #7A6872;
+  --color-amber-800: #2B1F28;
+  --color-amber-900: #2B2B32;
+
+  --color-emerald-50: #F0F9F4;
+  --color-emerald-100: #DCF2E6;
+  --color-emerald-200: #B9E6CD;
+  --color-emerald-500: #10B981;
+  --color-emerald-600: #059669;
+  --color-emerald-700: #047857;
+
+  --color-red-50: #FFF5F5;
+  --color-red-100: #FED7D7;
+  --color-red-200: #FEB2B2;
+  --color-red-500: #EF4444;
+  --color-red-600: #DC2626;
+  --color-red-700: #B91C1C;
+
+  --color-neutral-50: #F7F0F3;
+  --color-neutral-100: #FDFBF7;
+  --color-neutral-200: #E8D5DC;
+  --color-neutral-300: #7A6872;
+  --color-neutral-400: #7A6872;
+  --color-neutral-500: #7A6872;
+  --color-neutral-600: #5D4A55;
+  --color-neutral-700: #46343F;
+  --color-neutral-800: #2B1F28;
+  --color-neutral-900: #2B2B32;
+}
+
+body {
+  background-color: #F7F0F3;
+  color: #2B1F28;
+}
+
+/* Hide standard horizontal scrollbar on custom sliding element list */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* CLIENT AUTOCOMPLETE STYLING */
+.cliente-autocomplete {
+  position: relative;
+  width: 100%;
+}
+
+.cliente-input-wrap {
+  display: flex;
+  align-items: center;
+  border: 1.5px solid #E8D5DC;
+  border-radius: 10px;
+  background: #FFFFFF;
+  padding: 0 12px;
+  gap: 8px;
+  transition: border-color 0.15s;
+}
+
+.cliente-input-wrap:focus-within {
+  border-color: #C4708A;
+  box-shadow: 0 0 0 3px rgba(196, 112, 138, 0.12);
+}
+
+.cliente-search-icon {
+  font-size: 14px;
+  color: #7A6872;
+  flex-shrink: 0;
+}
+
+.cliente-busca-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  padding: 11px 0;
+  font-size: 14px;
+  color: #2B1F28;
+  background: transparent;
+  font-family: system-ui, sans-serif;
+}
+
+.cliente-busca-input::placeholder {
+  color: #7A6872;
+}
+
+.cliente-clear-btn {
+  background: none;
+  border: none;
+  color: #7A6872;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.cliente-clear-btn:hover {
+  background: #F2E4EA;
+  color: #8B3A55;
+}
+
+.cliente-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: #FFFFFF;
+  border: 1.5px solid #E8D5DC;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(43, 31, 40, 0.10);
+  max-height: 220px;
+  overflow-y: auto;
+  z-index: 1000;
+  list-style: none;
+  padding: 4px 0;
+  margin: 0;
+}
+
+.cliente-dropdown::-webkit-scrollbar {
+  width: 4px;
+}
+
+.cliente-dropdown::-webkit-scrollbar-track {
+  background: #F7F0F3;
+}
+
+.cliente-dropdown::-webkit-scrollbar-thumb {
+  background: #E8D5DC;
+  border-radius: 4px;
+}
+
+.cliente-dropdown li {
+  padding: 10px 14px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #2B1F28;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  border-bottom: 1px solid #F2E4EA;
+  transition: background 0.1s;
+}
+
+.cliente-dropdown li:last-child {
+  border-bottom: none;
+}
+
+.cliente-dropdown li:hover,
+.cliente-dropdown li.focused {
+  background: #F9E0E8;
+}
+
+.cliente-dropdown li .cli-nome {
+  font-weight: 600;
+}
+
+.cliente-dropdown li .cli-fone {
+  font-size: 11px;
+  color: #7A6872;
+}
+
+.cliente-dropdown li .cli-divida {
+  font-size: 11px;
+  color: #9B2335;
+  font-weight: 600;
+}
+
+.cliente-dropdown li.avulso {
+  color: #7A6872;
+  font-style: italic;
+}
+
+.cliente-dropdown li.avulso:hover {
+  background: #F2E4EA;
+}
+
+.cliente-dropdown .sem-resultado {
+  padding: 12px 14px;
+  font-size: 13px;
+  color: #7A6872;
+  text-align: center;
+}
+
+.cliente-dropdown .sem-resultado a {
+  color: #C4708A;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.cliente-dropdown .sem-resultado a:hover {
+  color: #8B3A55;
+  text-decoration: underline;
+}
+
+.cliente-aviso-fiado {
+  margin-top: 6px;
+  padding: 8px 12px;
+  background: #FEF3C7;
+  border: 1px solid #F59E0B;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #92400E;
+  font-weight: 500;
+}

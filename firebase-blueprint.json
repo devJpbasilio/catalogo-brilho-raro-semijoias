@@ -1,0 +1,100 @@
+{
+  "entities": {
+    "product": {
+      "title": "Product",
+      "description": "A jewelry product in the catalog",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "category": { "type": "string" },
+        "price": { "type": "number" },
+        "imageUrl": { "type": "string" },
+        "isAvailable": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "name", "price", "category", "isAvailable", "createdAt"]
+    },
+    "customer": {
+      "title": "Customer",
+      "description": "A customer of the jewelry store",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "phone": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "name", "phone", "createdAt"]
+    },
+    "sale": {
+      "title": "Sale",
+      "description": "A transaction recording a product sale",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "customerId": { "type": "string" },
+        "customerName": { "type": "string" },
+        "customerPhone": { "type": "string" },
+        "items": { "type": "array" },
+        "totalAmount": { "type": "number" },
+        "paymentMethod": { "type": "string" },
+        "status": { "type": "string" },
+        "date": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "customerId", "customerName", "items", "totalAmount", "paymentMethod", "status", "date", "createdAt"]
+    },
+    "cash_entry": {
+      "title": "Cash Entry",
+      "description": "A cash flow entry in the financial logs",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string" },
+        "amount": { "type": "number" },
+        "description": { "type": "string" },
+        "date": { "type": "string" },
+        "saleId": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "type", "amount", "description", "date", "createdAt"]
+    },
+    "brand_config": {
+      "title": "Brand Config",
+      "description": "Visual settings and catalog configuration",
+      "type": "object",
+      "properties": {
+        "brandName": { "type": "string" },
+        "logoUrl": { "type": "string" },
+        "bannerUrl": { "type": "string" },
+        "categories": { "type": "array" },
+        "whatsAppNumber": { "type": "string" }
+      },
+      "required": ["brandName"]
+    }
+  },
+  "firestore": {
+    "/products/{productId}": {
+      "schema": "product",
+      "description": "Catalog of available and unavailable products"
+    },
+    "/customers/{customerId}": {
+      "schema": "customer",
+      "description": "Registered customers"
+    },
+    "/sales/{saleId}": {
+      "schema": "sale",
+      "description": "Completed or pending sales"
+    },
+    "/cash_flow/{cashEntryId}": {
+      "schema": "cash_entry",
+      "description": "Cash flow records"
+    },
+    "/config/{configId}": {
+      "schema": "brand_config",
+      "description": "Shop config files"
+    }
+  }
+}

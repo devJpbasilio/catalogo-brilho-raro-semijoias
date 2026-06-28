@@ -1,0 +1,6 @@
+{
+  "name": "Catálogo e Vendas de Semijoias",
+  "description": "Aplicativo simples e intuitivo para pequenos negócios de semijoias gerenciarem catálogo, vendas (à vista e fiado), fluxo de caixa e clientes.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

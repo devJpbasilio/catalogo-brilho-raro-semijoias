@@ -1,0 +1,103 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper to validate generic string IDs
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Helper to check if a product is valid
+    function isValidProduct(data) {
+      return data.id is string && data.id.size() <= 128
+        && data.name is string && data.name.size() <= 200
+        && data.description is string && data.description.size() <= 2000
+        && data.category is string && data.category.size() <= 100
+        && (data.price is int || data.price is float) && data.price >= 0
+        && data.imageUrl is string && data.imageUrl.size() <= 2000000
+        && data.isAvailable is bool
+        && data.createdAt is string && data.createdAt.size() <= 50;
+    }
+
+    // Helper to check if a customer is valid
+    function isValidCustomer(data) {
+      return data.id is string && data.id.size() <= 128
+        && data.name is string && data.name.size() <= 200
+        && data.phone is string && data.phone.size() <= 50
+        && data.createdAt is string && data.createdAt.size() <= 50;
+    }
+
+    // Helper to check if a sale is valid
+    function isValidSale(data) {
+      return data.id is string && data.id.size() <= 128
+        && data.customerId is string && data.customerId.size() <= 128
+        && data.customerName is string && data.customerName.size() <= 200
+        && (data.customerPhone == null || (data.customerPhone is string && data.customerPhone.size() <= 50))
+        && data.items is list && data.items.size() <= 100
+        && (data.totalAmount is int || data.totalAmount is float) && data.totalAmount >= 0
+        && data.paymentMethod is string && (data.paymentMethod == 'cash' || data.paymentMethod == 'credit' || data.paymentMethod == 'pix' || data.paymentMethod == 'credit_card' || data.paymentMethod == 'debit_card' || data.paymentMethod == 'fiado' || data.paymentMethod == 'order')
+        && data.status is string && (data.status == 'paid' || data.status == 'pending' || data.status == 'order' || data.status == 'partial')
+        && data.date is string && data.date.size() <= 50
+        && data.createdAt is string && data.createdAt.size() <= 50;
+    }
+
+    // Helper to check if a cash entry is valid
+    function isValidCashEntry(data) {
+      return data.id is string && data.id.size() <= 128
+        && data.type is string && (data.type == 'in' || data.type == 'out')
+        && (data.amount is int || data.amount is float) && data.amount >= 0
+        && data.description is string && data.description.size() <= 1000
+        && data.date is string && data.date.size() <= 50
+        && (data.saleId == null || (data.saleId is string && data.saleId.size() <= 128))
+        && data.createdAt is string && data.createdAt.size() <= 50;
+    }
+
+    // Helper to check if a brand config is valid
+    function isValidBrandConfig(data) {
+      return data.brandName is string && data.brandName.size() <= 200
+        && data.logoUrl is string && data.logoUrl.size() <= 2000000
+        && data.bannerUrl is string && data.bannerUrl.size() <= 2000000
+        && data.categories is list && data.categories.size() <= 100
+        && (data.whatsAppNumber == null || (data.whatsAppNumber is string && data.whatsAppNumber.size() <= 100));
+    }
+
+    // Products Rules
+    match /products/{productId} {
+      allow get, list: if true;
+      allow create, update: if isValidId(productId) && isValidProduct(request.resource.data);
+      allow delete: if isValidId(productId);
+    }
+
+    // Customers Rules
+    match /customers/{customerId} {
+      allow get, list: if true;
+      allow create, update: if isValidId(customerId) && isValidCustomer(request.resource.data);
+      allow delete: if isValidId(customerId);
+    }
+
+    // Sales Rules
+    match /sales/{saleId} {
+      allow get, list: if true;
+      allow create, update: if isValidId(saleId) && isValidSale(request.resource.data);
+      allow delete: if isValidId(saleId);
+    }
+
+    // Cash Flow Rules
+    match /cash_flow/{cashEntryId} {
+      allow get, list: if true;
+      allow create, update: if isValidId(cashEntryId) && isValidCashEntry(request.resource.data);
+      allow delete: if isValidId(cashEntryId);
+    }
+
+    // Config Rules
+    match /config/{configId} {
+      allow get: if true;
+      allow write: if isValidId(configId) && (configId == 'brand' ? isValidBrandConfig(request.resource.data) : true);
+    }
+  }
+}
