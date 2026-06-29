@@ -32,6 +32,7 @@ export default function App() {
   const [openCustomerModalOnLoad, setOpenCustomerModalOnLoad] = useState(false);
   const [isPublicCatalog, setIsPublicCatalog] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [configLoaded, setConfigLoaded] = useState(false);
 
   const handleLogout = () => {
     sessionStorage.removeItem('admin_authenticated');
@@ -64,6 +65,7 @@ export default function App() {
       // Load brand config first
       const config = await getBrandConfig();
       setBrandConfig(config);
+      setConfigLoaded(true);
 
       // Load products
       let prodList = await getProducts();
@@ -104,13 +106,14 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (!configLoaded) return; // aguardar o config carregar completamente antes de decidir
     const params = new URLSearchParams(window.location.search);
     const isCatalog = params.get('catalog') === 'true';
     if (!brandConfig.adminPassword && !isCatalog) {
       sessionStorage.setItem('admin_authenticated', 'true');
       setIsAuthenticated(true);
     }
-  }, [brandConfig.adminPassword]);
+  }, [brandConfig.adminPassword, configLoaded]);
 
   const handleBackToAdmin = () => {
     setIsPublicCatalog(false);
