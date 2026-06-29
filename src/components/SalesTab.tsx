@@ -430,6 +430,28 @@ export default function SalesTab({
 
     await onAddSale(newSale);
     
+    // Abrir o recibo de venda
+    if (typeof (window as any).abrirRecibo === 'function') {
+      (window as any).abrirRecibo({
+        id: newSale.id,
+        data: newSale.date,
+        cliente: newSale.customerName,
+        clienteCelular: newSale.customerPhone || '',
+        forma: newSale.paymentMethod,
+        itens: newSale.items.map(item => ({
+          nome: item.productName,
+          quantidade: item.quantity,
+          preco: item.price
+        })),
+        total: newSale.totalAmount,
+        ...(newSale.paymentMethod === 'fiado' && {
+          entrada: newSale.downPayment || 0,
+          parcelas: newSale.installmentsCount || 1,
+          primeiroVencimento: newSale.installments && newSale.installments.length > 0 ? newSale.installments[0].dueDate : firstDueDate
+        })
+      });
+    }
+    
     // Reset state & close
     setIsSaleModalOpen(false);
     setSelectedCustomerId('balcao');
@@ -528,7 +550,30 @@ export default function SalesTab({
     await onAddSale(finalizedSale);
     setIsApproveModalOpen(false);
     setApprovingOrder(null);
-    alert('Pedido finalizado com sucesso! O fluxo financeiro e as parcelas foram criadas.');
+
+    // Abrir o recibo de venda
+    if (typeof (window as any).abrirRecibo === 'function') {
+      (window as any).abrirRecibo({
+        id: finalizedSale.id,
+        data: finalizedSale.date,
+        cliente: finalizedSale.customerName,
+        clienteCelular: finalizedSale.customerPhone || '',
+        forma: finalizedSale.paymentMethod,
+        itens: finalizedSale.items.map(item => ({
+          nome: item.productName,
+          quantidade: item.quantity,
+          preco: item.price
+        })),
+        total: finalizedSale.totalAmount,
+        ...(finalizedSale.paymentMethod === 'fiado' && {
+          entrada: finalizedSale.downPayment || 0,
+          parcelas: finalizedSale.installmentsCount || 1,
+          primeiroVencimento: finalizedSale.installments && finalizedSale.installments.length > 0 ? finalizedSale.installments[0].dueDate : approveFirstDueDate
+        })
+      });
+    } else {
+      alert('Pedido finalizado com sucesso! O fluxo financeiro e as parcelas foram criadas.');
+    }
   };
 
   // Directly settle full remaining debt of standard sale or legacy credit

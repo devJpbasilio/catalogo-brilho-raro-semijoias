@@ -7,6 +7,288 @@
   </head>
   <body>
     <div id="root"></div>
+    
+    <!-- REGISTRO DO MODAL DE RECIBO (CUPOM) -->
+    <div id="receipt-modal-container" class="receipt-modal-overlay hidden">
+      <div class="receipt-modal-content">
+        <div class="receipt-paper" id="receipt-print-area">
+          <div class="receipt-header">
+            <img id="receipt-store-logo" class="receipt-logo" src="" alt="Logo" style="display: none;" />
+            <h1 id="receipt-store-name" class="receipt-store-name">Semijoias Pro</h1>
+            <p class="receipt-subtitle">Comprovante de Venda</p>
+          </div>
+          
+          <div class="receipt-divider-dashed"></div>
+          
+          <div class="receipt-section">
+            <p><strong>Pedido:</strong> <span id="receipt-sale-id">#000000</span></p>
+            <p><strong>Data:</strong> <span id="receipt-sale-date">00/00/0000</span></p>
+            <p><strong>Cliente:</strong> <span id="receipt-customer-name">Cliente</span></p>
+            <p><strong>Pagamento:</strong> <span id="receipt-payment-method">Forma</span></p>
+          </div>
+          
+          <div class="receipt-divider-dashed"></div>
+          
+          <div class="receipt-section">
+            <p class="receipt-section-title">ITENS</p>
+            <div id="receipt-items-list" class="receipt-items-list"></div>
+          </div>
+          
+          <div class="receipt-divider-dashed"></div>
+          
+          <div class="receipt-section receipt-total-section">
+            <div class="receipt-total-row">
+              <span>TOTAL</span>
+              <span id="receipt-total-amount" class="receipt-total-amount">R$ 0,00</span>
+            </div>
+          </div>
+          
+          <div id="receipt-fiado-section" class="receipt-section hidden">
+            <div class="receipt-divider-dashed mb-3"></div>
+            <p class="receipt-section-title">DETALHES DO FIADO</p>
+            <p><strong>Entrada Paga:</strong> <span id="receipt-fiado-downpayment">R$ 0,00</span></p>
+            <p><strong>Saldo Restante:</strong> <span id="receipt-fiado-remaining">R$ 0,00</span></p>
+            <p><strong>Parcelas:</strong> <span id="receipt-fiado-installments-count">0</span>x de <span id="receipt-fiado-installment-value">R$ 0,00</span></p>
+            
+            <p class="receipt-section-title mt-3">VENCIMENTOS</p>
+            <div id="receipt-fiado-cards" class="receipt-fiado-cards-grid"></div>
+          </div>
+          
+          <div class="receipt-divider-dashed"></div>
+          
+          <div class="receipt-footer">
+            <p>Obrigada pela preferência! 💕</p>
+          </div>
+        </div>
+        
+        <div class="receipt-actions no-print">
+          <button id="receipt-print-btn" class="receipt-btn-print">
+            <svg xmlns="http://www.w3.org/2000/svg" style="width: 16px; height: 16px;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+            </svg>
+            Imprimir / Salvar PDF
+          </button>
+          <button id="receipt-whatsapp-btn" class="receipt-btn-whatsapp">
+            <svg xmlns="http://www.w3.org/2000/svg" style="width: 16px; height: 16px;" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.746.953 3.71 1.458 5.705 1.459h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413"/>
+            </svg>
+            WhatsApp
+          </button>
+          <button id="receipt-close-btn" class="receipt-btn-close">Fechar</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      window.abrirRecibo = function(dadosVenda) {
+        if (!dadosVenda) return;
+        
+        let storeName = 'Semijoias Pro';
+        let logoUrl = '';
+        try {
+          const savedConfig = localStorage.getItem('semijoias_brand_config');
+          if (savedConfig) {
+            const config = JSON.parse(savedConfig);
+            if (config.brandName) storeName = config.brandName;
+            if (config.logoUrl) logoUrl = config.logoUrl;
+          }
+        } catch (e) {
+          console.error('Erro ao ler brand config:', e);
+        }
+        
+        const modal = document.getElementById('receipt-modal-container');
+        const storeLogoEl = document.getElementById('receipt-store-logo');
+        const storeNameEl = document.getElementById('receipt-store-name');
+        const saleIdEl = document.getElementById('receipt-sale-id');
+        const saleDateEl = document.getElementById('receipt-sale-date');
+        const customerNameEl = document.getElementById('receipt-customer-name');
+        const paymentMethodEl = document.getElementById('receipt-payment-method');
+        const itemsListEl = document.getElementById('receipt-items-list');
+        const totalAmountEl = document.getElementById('receipt-total-amount');
+        const fiadoSection = document.getElementById('receipt-fiado-section');
+        
+        const fiadoDownpaymentEl = document.getElementById('receipt-fiado-downpayment');
+        const fiadoRemainingEl = document.getElementById('receipt-fiado-remaining');
+        const fiadoInstallmentsCountEl = document.getElementById('receipt-fiado-installments-count');
+        const fiadoInstallmentValueEl = document.getElementById('receipt-fiado-installment-value');
+        const fiadoCardsEl = document.getElementById('receipt-fiado-cards');
+        
+        if (!modal) return;
+        
+        storeNameEl.textContent = storeName;
+        if (logoUrl) {
+          storeLogoEl.src = logoUrl;
+          storeLogoEl.style.display = 'block';
+        } else {
+          storeLogoEl.style.display = 'none';
+        }
+        
+        const formatCurrency = (val) => {
+          return val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        };
+        
+        const formatDate = (dateStr) => {
+          if (!dateStr) return '';
+          const parts = dateStr.split('-');
+          if (parts.length === 3) {
+            return `${parts[2]}/${parts[1]}/${parts[0]}`;
+          }
+          try {
+            const d = new Date(dateStr);
+            if (!isNaN(d.getTime())) {
+              return d.toLocaleDateString('pt-BR');
+            }
+          } catch (e) {}
+          return dateStr;
+        };
+        
+        const formatPaymentMethod = (method) => {
+          const map = {
+            'pix': 'PIX 📱',
+            'credit_card': 'Cartão de Crédito 💳',
+            'debit_card': 'Cartão de Débito 💳',
+            'fiado': 'Fiado 📝'
+          };
+          return map[method.toLowerCase()] || method;
+        };
+        
+        const shortId = dadosVenda.id.startsWith('order_') 
+          ? dadosVenda.id.replace('order_', '').substring(0, 5).toUpperCase()
+          : dadosVenda.id.substring(0, 8).toUpperCase();
+        
+        saleIdEl.textContent = `#${shortId}`;
+        saleDateEl.textContent = formatDate(dadosVenda.data);
+        customerNameEl.textContent = dadosVenda.cliente;
+        paymentMethodEl.textContent = formatPaymentMethod(dadosVenda.forma);
+        
+        itemsListEl.innerHTML = '';
+        dadosVenda.itens.forEach(item => {
+          const row = document.createElement('div');
+          row.className = 'receipt-item-row';
+          
+          const leftCol = document.createElement('span');
+          leftCol.className = 'receipt-item-left';
+          leftCol.textContent = `${item.quantidade}x ${item.nome}`;
+          
+          const rightCol = document.createElement('span');
+          rightCol.className = 'receipt-item-right';
+          rightCol.textContent = formatCurrency(item.preco * item.quantidade);
+          
+          row.appendChild(leftCol);
+          row.appendChild(rightCol);
+          itemsListEl.appendChild(row);
+        });
+        
+        totalAmountEl.textContent = formatCurrency(dadosVenda.total);
+        
+        const isFiado = dadosVenda.forma.toLowerCase() === 'fiado';
+        if (isFiado) {
+          fiadoSection.classList.remove('hidden');
+          
+          const entrada = parseFloat(dadosVenda.entrada || 0);
+          const saldo = Math.max(0, dadosVenda.total - entrada);
+          const parcelasCount = parseInt(dadosVenda.parcelas || 1);
+          const valorParcela = parseFloat((saldo / parcelasCount).toFixed(2));
+          
+          fiadoDownpaymentEl.textContent = formatCurrency(entrada);
+          fiadoRemainingEl.textContent = formatCurrency(saldo);
+          fiadoInstallmentsCountEl.textContent = parcelasCount;
+          fiadoInstallmentValueEl.textContent = formatCurrency(valorParcela);
+          
+          fiadoCardsEl.innerHTML = '';
+          
+          const list = [];
+          const baseDueDate = dadosVenda.primeiroVencimento || new Date().toISOString().split('T')[0];
+          
+          for (let i = 1; i <= parcelasCount; i++) {
+            const d = new Date(baseDueDate + 'T12:00:00');
+            if (i > 1) {
+              d.setMonth(d.getMonth() + (i - 1));
+            }
+            
+            list.push({
+              num: i,
+              amount: i === parcelasCount ? parseFloat((saldo - valorParcela * (parcelasCount - 1)).toFixed(2)) : valorParcela,
+              dueDate: d.toISOString().split('T')[0]
+            });
+          }
+          
+          list.forEach(inst => {
+            const card = document.createElement('div');
+            card.className = 'receipt-fiado-card';
+            
+            card.innerHTML = `
+              <div class="receipt-fiado-card-left">
+                <span class="receipt-fiado-card-num">Parcela ${inst.num}/${parcelasCount}</span>
+                <span class="receipt-fiado-card-date">Venc. ${formatDate(inst.dueDate)}</span>
+              </div>
+              <span class="receipt-fiado-card-val">${formatCurrency(inst.amount)}</span>
+            `;
+            
+            fiadoCardsEl.appendChild(card);
+          });
+        } else {
+          fiadoSection.classList.add('hidden');
+        }
+        
+        document.getElementById('receipt-whatsapp-btn').onclick = function() {
+          let msg = `*Comprovante de Venda - ${storeName}*\n\n`;
+          msg += `*Pedido:* #${shortId}\n`;
+          msg += `*Data:* ${formatDate(dadosVenda.data)}\n`;
+          msg += `*Cliente:* ${dadosVenda.cliente}\n`;
+          msg += `*Pagamento:* ${formatPaymentMethod(dadosVenda.forma)}\n\n`;
+          
+          msg += `*ITENS:*\n`;
+          dadosVenda.itens.forEach(item => {
+            msg += `• ${item.quantidade}x ${item.nome} - ${formatCurrency(item.preco * item.quantidade)}\n`;
+          });
+          msg += `\n*TOTAL:* ${formatCurrency(dadosVenda.total)}\n`;
+          
+          if (isFiado) {
+            const entrada = parseFloat(dadosVenda.entrada || 0);
+            const saldo = Math.max(0, dadosVenda.total - entrada);
+            const parcelasCount = parseInt(dadosVenda.parcelas || 1);
+            const valorParcela = parseFloat((saldo / parcelasCount).toFixed(2));
+            
+            msg += `\n*DETALHES DO FIADO:*\n`;
+            msg += `• *Entrada:* ${formatCurrency(entrada)}\n`;
+            msg += `• *Restante:* ${formatCurrency(saldo)}\n`;
+            msg += `• *Parcelas:* ${parcelasCount}x de ${formatCurrency(valorParcela)}\n\n`;
+            
+            msg += `*VENCIMENTOS:*\n`;
+            const baseDueDate = dadosVenda.primeiroVencimento || new Date().toISOString().split('T')[0];
+            for (let i = 1; i <= parcelasCount; i++) {
+              const d = new Date(baseDueDate + 'T12:00:00');
+              if (i > 1) {
+                d.setMonth(d.getMonth() + (i - 1));
+              }
+              const amt = i === parcelasCount ? parseFloat((saldo - valorParcela * (parcelasCount - 1)).toFixed(2)) : valorParcela;
+              msg += `• Parc. ${i}: ${formatDate(d.toISOString().split('T')[0])} - ${formatCurrency(amt)}\n`;
+            }
+          }
+          
+          msg += `\nObrigada pela preferência! 💕`;
+          
+          const phoneClean = (dadosVenda.clienteCelular || '').replace(/\D/g, '');
+          const waUrl = phoneClean 
+            ? `https://wa.me/55${phoneClean}?text=${encodeURIComponent(msg)}`
+            : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+          
+          window.open(waUrl, '_blank');
+        };
+        
+        document.getElementById('receipt-print-btn').onclick = function() {
+          window.print();
+        };
+        
+        document.getElementById('receipt-close-btn').onclick = function() {
+          modal.classList.add('hidden');
+        };
+        
+        modal.classList.remove('hidden');
+      };
+    </script>
+
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

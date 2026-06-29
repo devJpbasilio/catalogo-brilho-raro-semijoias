@@ -231,3 +231,404 @@ body {
   color: #92400E;
   font-weight: 500;
 }
+
+/* VISUAL RECEIPT (CUPOM) STYLING */
+.receipt-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  backdrop-filter: blur(4px);
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.receipt-modal-overlay.hidden {
+  display: none !important;
+}
+
+.receipt-modal-content {
+  background-color: #FFFFFF;
+  border-radius: 16px;
+  max-width: 420px;
+  width: 100%;
+  padding: 24px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.receipt-paper {
+  background-color: #FFFFFF;
+  border: 1px solid #E8D5DC;
+  border-radius: 12px;
+  padding: 24px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  color: #2B1F28;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.receipt-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.receipt-logo {
+  max-width: 80px;
+  height: auto;
+  margin-bottom: 12px;
+  border-radius: 8px;
+  object-fit: contain;
+}
+
+.receipt-store-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: #2B1F28;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.receipt-subtitle {
+  font-size: 12px;
+  font-weight: 500;
+  color: #7A6872;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.receipt-divider-dashed {
+  border-top: 2px dashed #E8D5DC;
+  margin: 16px 0;
+  height: 0;
+}
+
+.receipt-section {
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.receipt-section p {
+  display: flex;
+  justify-content: space-between;
+  margin: 4px 0;
+}
+
+.receipt-section p strong {
+  font-weight: 600;
+  color: #7A6872;
+}
+
+.receipt-section p span {
+  color: #2B1F28;
+}
+
+.receipt-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #C4708A;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  margin-bottom: 8px;
+}
+
+.receipt-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.receipt-item-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+}
+
+.receipt-item-left {
+  flex: 1;
+  text-align: left;
+  padding-right: 12px;
+  word-break: break-word;
+}
+
+.receipt-item-right {
+  text-align: right;
+  flex-shrink: 0;
+  font-weight: 500;
+}
+
+.receipt-total-section {
+  padding: 4px 0;
+}
+
+.receipt-total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 700;
+}
+
+.receipt-total-row span:first-child {
+  font-size: 14px;
+  color: #2B1F28;
+}
+
+.receipt-total-amount {
+  font-size: 20px;
+  color: #C4708A;
+}
+
+.receipt-fiado-cards-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.receipt-fiado-card {
+  background-color: #F9E0E8;
+  border: 1px solid #E8D5DC;
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+}
+
+.receipt-fiado-card-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.receipt-fiado-card-num {
+  font-weight: 700;
+  color: #8B3A55;
+}
+
+.receipt-fiado-card-date {
+  color: #7A6872;
+}
+
+.receipt-fiado-card-val {
+  font-weight: 700;
+  color: #2B1F28;
+}
+
+.receipt-footer {
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: #C4708A;
+  margin-top: 12px;
+}
+
+.receipt-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.receipt-btn-print {
+  background-color: #2B2332;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 10px;
+  padding: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background-color 0.15s;
+}
+
+.receipt-btn-print:hover {
+  background-color: #40344b;
+}
+
+.receipt-btn-whatsapp {
+  background-color: #25D366;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 10px;
+  padding: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background-color 0.15s;
+}
+
+.receipt-btn-whatsapp:hover {
+  background-color: #20ba5a;
+}
+
+.receipt-btn-close {
+  background-color: #F2E4EA;
+  color: #2B1F28;
+  border: 1px solid #E8D5DC;
+  border-radius: 10px;
+  padding: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.receipt-btn-close:hover {
+  background-color: #E8D5DC;
+  color: #8B3A55;
+}
+
+/* Print Layout Override */
+@media print {
+  body > :not(#receipt-modal-container) {
+    display: none !important;
+  }
+  
+  #receipt-modal-container {
+    position: absolute !important;
+    inset: 0 !important;
+    background-color: #FFFFFF !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    display: block !important;
+    z-index: 1 !important;
+    backdrop-filter: none !important;
+    box-shadow: none !important;
+  }
+
+  .receipt-modal-content {
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .receipt-paper {
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* TELA DE SENHA DE ACESSO ADMINISTRATIVO */
+.admin-login-bg {
+  background: radial-gradient(circle, #3D2E42 0%, #2B2332 100%) !important;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+}
+
+.admin-login-card {
+  background-color: #FFFFFF !important;
+  border-radius: 20px !important;
+  max-width: 380px !important;
+  width: 100% !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2) !important;
+  padding: 32px 24px !important;
+  border: 1px solid #E8D5DC !important;
+}
+
+.admin-login-btn {
+  background-color: #C4708A !important;
+  color: #FFFFFF !important;
+  font-weight: 700 !important;
+  border-radius: 12px !important;
+  padding: 14px !important;
+  width: 100% !important;
+  transition: all 0.2s ease-in-out !important;
+  box-shadow: 0 4px 6px -1px rgba(196, 112, 138, 0.2) !important;
+  cursor: pointer !important;
+}
+
+.admin-login-btn:hover:not(:disabled) {
+  background-color: #8B3A55 !important;
+}
+
+.admin-login-btn:disabled {
+  opacity: 0.6 !important;
+  cursor: not-allowed !important;
+}
+
+.admin-login-input {
+  background-color: #F7F0F3 !important;
+  border: 1px solid #E8D5DC !important;
+  color: #2B1F28 !important;
+  border-radius: 12px !important;
+  padding: 12px 40px 12px 16px !important;
+  width: 100% !important;
+  outline: none !important;
+  font-size: 14px !important;
+  transition: border-color 0.2s !important;
+}
+
+.admin-login-input:focus {
+  border-color: #C4708A !important;
+  box-shadow: 0 0 0 2px rgba(196, 112, 138, 0.15) !important;
+}
+
+.admin-login-label {
+  color: #7A6872 !important;
+  font-weight: 600 !important;
+  font-size: 11px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 1px !important;
+  margin-bottom: 6px !important;
+  display: block !important;
+}
+
+.admin-login-text-primary {
+  color: #2B1F28 !important;
+}
+
+.admin-login-text-secondary {
+  color: #7A6872 !important;
+}
+
+.admin-login-text-error {
+  color: #9B2335 !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+}
+
+.shake {
+  animation: shake 0.4s ease-in-out !important;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  15%, 45%, 75% { transform: translateX(-6px); }
+  30%, 60%, 90% { transform: translateX(6px); }
+}
