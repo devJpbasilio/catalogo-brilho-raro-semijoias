@@ -31,9 +31,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<TabId>('dashboard');
   const [openCustomerModalOnLoad, setOpenCustomerModalOnLoad] = useState(false);
   const [isPublicCatalog, setIsPublicCatalog] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    return sessionStorage.getItem('admin_authenticated') === 'true';
-  });
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const handleLogout = () => {
     sessionStorage.removeItem('admin_authenticated');
@@ -96,6 +94,8 @@ export default function App() {
   };
 
   useEffect(() => {
+    // Sempre limpar autenticação ao carregar a página
+    sessionStorage.removeItem('admin_authenticated');
     loadAllData();
     const params = new URLSearchParams(window.location.search);
     if (params.get('catalog') === 'true') {
