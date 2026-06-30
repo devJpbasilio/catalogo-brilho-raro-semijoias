@@ -8,7 +8,7 @@ import { Product, BrandConfig } from '../types';
 import { 
   Search, ShoppingBag, Plus, Minus, Trash2, X, Check, ArrowLeft, 
   HelpCircle, Send, Share2, Sparkles, Heart, Tag, Info, Star, 
-  ChevronLeft, ChevronRight, Eye
+  ChevronLeft, ChevronRight, Eye, AlertCircle
 } from 'lucide-react';
 
 interface PublicCatalogProps {
@@ -40,6 +40,30 @@ export default function PublicCatalog({ products, brandConfig, onAddSale }: Publ
   const [custName, setCustName] = useState('');
   const [custPhone, setCustPhone] = useState('');
 
+  // States for toast, welcome overlay, and sorting
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [showWelcome, setShowWelcome] = useState(false);
+  const [sortBy, setSortBy] = useState<'default' | 'price-asc' | 'price-desc' | 'newest'>('default');
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 2800);
+  };
+
+  const formatPhoneInput = (val: string) => {
+    const digits = val.replace(/\D/g, '');
+    if (digits.length === 0) return '';
+    if (digits.length <= 2) return `(${digits}`;
+    if (digits.length <= 6) return `(${digits.substring(0, 2)}) ${digits.substring(2)}`;
+    if (digits.length <= 10) return `(${digits.substring(0, 2)}) ${digits.substring(2, 6)}-${digits.substring(6)}`;
+    return `(${digits.substring(0, 2)}) ${digits.substring(2, 7)}-${digits.substring(7, 11)}`;
+  };
+
+  const dismissWelcome = () => {
+    localStorage.setItem(`welcomed_${brandConfig.brandName}`, 'true');
+    setShowWelcome(false);
+  };
+
   // Load cart and favorites from localStorage
   useEffect(() => {
     try {
@@ -48,6 +72,11 @@ export default function PublicCatalog({ products, brandConfig, onAddSale }: Publ
       
       const savedFavs = localStorage.getItem(`favs_${brandConfig.brandName}`);
       if (savedFavs) setFavorites(JSON.parse(savedFavs));
+
+      const welcomeKey = `welcomed_${brandConfig.brandName}`;
+      if (!localStorage.getItem(welcomeKey)) {
+        setShowWelcome(true);
+      }
     } catch (e) {
       console.warn('Failed to load local storage data', e);
     }
@@ -109,8 +138,30 @@ export default function PublicCatalog({ products, brandConfig, onAddSale }: Publ
       else if (selectedBadge === 'promo') matchBadge = !!p.isPromo;
 
       return matchCategory && matchSearch && matchBadge;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'price-asc') {
+        const pA = a.isPromo && a.promoPrice ? a.promoPrice : a.price;
+        const pB = b.isPromo && b.promoPrice ? b.promoPrice : b.price;
+        return pA - pB;
+      }
+      if (sortBy === 'price-desc') {
+        const pA = a.isPromo && a.promoPrice ? a.promoPrice : a.price;
+        const pB = b.isPromo && b.promoPrice ? b.promoPrice : b.price;
+        return pB - pA;
+      }
+      if (sortBy === 'newest') return (b.isNew ? 1 : 0) - (a.isNew ? 1 : 0);
+      return 0;
     });
-  }, [availableProducts, selectedCategory, searchTerm, selectedBadge]);
+  }, [availableProducts, selectedCategory, searchTerm, selectedBadge, sortBy]);
+
+  // Related products (Part 5)
+  const relatedProducts = useMemo(() => {
+    if (!selectedProduct) return [];
+    return availableProducts
+      .filter(p => p.id !== selectedProduct.id && p.category === selectedProduct.category)
+      .slice(0, 4);
+  }, [selectedProduct, availableProducts]);
 
   // Highlighted section datasets
   const newArrivals = useMemo(() => availableProducts.filter(p => p.isNew), [availableProducts]);
@@ -123,7 +174,7 @@ export default function PublicCatalog({ products, brandConfig, onAddSale }: Publ
 
     // Check stock availability
     if (product.estoque !== undefined && product.estoque !== null && product.estoque <= 0) {
-      alert('Desculpe, este produto está sem estoque no momento.');
+      showToast('Desculpe, este produto está sem estoque no momento.');
       return;
     }
 
@@ -137,7 +188,7 @@ export default function PublicCatalog({ products, brandConfig, onAddSale }: Publ
       if (existingIndex > -1) {
         const existingQty = prev[existingIndex].quantity;
         if (product.estoque !== undefined && product.estoque !== null && existingQty >= product.estoque) {
-          alert(`Desculpe, limite de estoque atingido (${product.estoque} unidades).`);
+          showToast(`Desculpe, limite de estoque atingido (${product.estoque} unidades).`);
           return prev;
         }
         updated = prev.map((item, idx) => 
@@ -162,7 +213,7 @@ export default function PublicCatalog({ products, brandConfig, onAddSale }: Publ
         if (item.product.id === productId && item.selectedSize === sizeToMatch) {
           const newQty = item.quantity + delta;
           if (delta > 0 && prod && prod.estoque !== undefined && prod.estoque !== null && newQty > prod.estoque) {
-            alert(`Desculpe, limite de estoque atingido (${prod.estoque} unidades).`);
+            showToast(`Desculpe, limite de estoque atingido (${prod.estoque} unidades).`);
             return item;
           }
           return newQty > 0 ? { ...item, quantity: newQty } : item;
@@ -356,13 +407,13 @@ export default function PublicCatalog({ products, brandConfig, onAddSale }: Publ
       <div className="space-y-4 pt-1 flex flex-col">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-serif font-bold text-neutral-800 flex items-center gap-1.5 uppercase tracking-wider">
-            <ShoppingBag className="w-4 h-4 text-amber-600 animate-pulse" />
+            <ShoppingBag className="w-4 h-4 text-[#C4708A] animate-pulse" />
             Nossa Coleção Completa
           </h2>
         </div>
 
         {/* Beautiful Modern Search Bar */}
-        <div className="relative shadow-sm rounded-2xl bg-white border border-neutral-150 p-1 flex items-center pr-3 focus-within:border-amber-500 focus-within:ring-2 focus-within:ring-amber-500/10 transition-all duration-300">
+        <div className="relative shadow-sm rounded-2xl bg-white border border-neutral-150 p-1 flex items-center pr-3 focus-within:border-[#C4708A] focus-within:ring-2 focus-within:ring-[#C4708A]/10 transition-all duration-300">
           <div className="p-2.5 text-neutral-400">
             <Search className="w-4.5 h-4.5" />
           </div>
@@ -402,13 +453,13 @@ export default function PublicCatalog({ products, brandConfig, onAddSale }: Publ
               onClick={() => setSelectedBadge('new')}
               className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all duration-300 flex items-center gap-1 ${
                 selectedBadge === 'new'
-                  ? 'bg-amber-600 text-white shadow-md shadow-amber-600/15'
-                  : 'bg-white text-amber-850 border border-amber-200/55 hover:bg-amber-50/20'
+                  ? 'bg-[#C4708A] text-white shadow-md shadow-[#C4708A]/15'
+                  : 'bg-white text-[#8B3A55] border border-[#E8D5DC]/55 hover:bg-[#F9E0E8]/20'
               }`}
             >
               <Sparkles className="w-3.5 h-3.5" />
               <span>Novidades</span>
-              <span className="bg-amber-100 text-amber-800 text-[9px] px-1 rounded-full font-bold">{newArrivals.length}</span>
+              <span className="bg-[#F9E0E8] text-[#8B3A55] text-[9px] px-1 rounded-full font-bold">{newArrivals.length}</span>
             </button>
           )}
           {featuredProducts.length > 0 && (
@@ -452,7 +503,7 @@ export default function PublicCatalog({ products, brandConfig, onAddSale }: Publ
               onClick={() => setSelectedCategory(cat)}
               className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-200 cursor-pointer ${
                 selectedCategory === cat
-                  ? 'bg-amber-600/10 text-amber-800 border-2 border-amber-600 shadow-xs'
+                  ? 'bg-[#C4708A]/10 text-[#8B3A55] border-2 border-[#C4708A] shadow-xs'
                   : 'bg-neutral-100 text-neutral-500 border border-transparent hover:bg-neutral-200'
               }`}
             >
@@ -466,6 +517,57 @@ export default function PublicCatalog({ products, brandConfig, onAddSale }: Publ
 
   return (
     <div id="public-catalog-container" className="flex-1 overflow-y-auto bg-neutral-50 flex flex-col font-sans relative pb-[calc(6rem+env(safe-area-inset-bottom,0px))]">
+      
+      {/* Welcome Overlay (Part 6) */}
+      {showWelcome && (
+        <div 
+          onClick={dismissWelcome}
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gradient-to-br from-[#2B2332] via-[#8B3A55] to-[#C4708A] overflow-y-auto"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-3xl p-6 sm:p-8 max-w-sm w-full shadow-2xl border border-[#E8D5DC] flex flex-col items-center text-center space-y-5 animate-scale-up"
+          >
+            {/* Logo */}
+            <div className="relative">
+              <img 
+                src={brandConfig.logoUrl || "https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=120&q=80"} 
+                alt="Logo" 
+                className="w-20 h-20 sm:w-24 sm:h-24 rounded-full border-4 border-[#F9E0E8] shadow-lg object-cover bg-white"
+                referrerPolicy="no-referrer"
+              />
+              <span className="absolute -bottom-1 -right-1 bg-[#C4708A] text-white rounded-full p-1 border-2 border-white shadow-md">
+                <Sparkles className="w-4 h-4 fill-white" />
+              </span>
+            </div>
+
+            {/* Brand Info */}
+            <div>
+              <h2 className="font-serif font-black text-2xl text-[#2B1F28] tracking-tight">
+                {brandConfig.brandName}
+              </h2>
+              {brandConfig.slogan && (
+                <p className="text-xs text-[#7A6872] italic font-medium mt-1">
+                  {brandConfig.slogan}
+                </p>
+              )}
+            </div>
+
+            {/* Welcome Text */}
+            <p className="text-xs text-[#2B1F28] leading-relaxed font-semibold">
+              Bem-vinda ao nosso catálogo! ✨ Explore peças únicas selecionadas especialmente para você.
+            </p>
+
+            {/* Action button */}
+            <button
+              onClick={dismissWelcome}
+              className="w-full bg-[#C4708A] hover:bg-[#8B3A55] text-white font-extrabold text-sm py-3.5 rounded-2xl shadow-md shadow-[#C4708A]/20 transition-all duration-300 transform active:scale-95 cursor-pointer"
+            >
+              Começar a explorar
+            </button>
+          </div>
+        </div>
+      )}
       
       {/* Premium Header Capa */}
       <div 
@@ -604,10 +706,10 @@ export default function PublicCatalog({ products, brandConfig, onAddSale }: Publ
               <div className="space-y-2.5 shrink-0">
                 <div className="flex items-center justify-between">
                   <h2 className="text-sm font-serif font-bold text-neutral-800 flex items-center gap-1.5 uppercase tracking-wider">
-                    <Sparkles className="w-4 h-4 text-amber-500 fill-amber-500" />
+                    <Sparkles className="w-4 h-4 text-[#C4708A] fill-[#C4708A]" />
                     Novidades da Coleção ✨
                   </h2>
-                  <span className="text-[10px] text-amber-650 font-extrabold uppercase tracking-wider">Lançamentos</span>
+                  <span className="text-[10px] text-[#8B3A55] font-extrabold uppercase tracking-wider">Lançamentos</span>
                 </div>
                 
                 <div className="flex space-x-3.5 overflow-x-auto pb-2 scrollbar-none -mx-4 px-4">
@@ -618,7 +720,7 @@ export default function PublicCatalog({ products, brandConfig, onAddSale }: Publ
                       <div 
                         key={p.id}
                         onClick={() => handleOpenDetails(p)}
-                        className="w-40 bg-white rounded-2xl overflow-hidden border border-neutral-150 shadow-xs flex-none cursor-pointer hover:shadow-md transition-all duration-300 relative"
+                        className="w-40 bg-white rounded-2xl overflow-hidden border border-neutral-150 shadow-xs flex-none cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 relative"
                       >
                         {/* Badge */}
                         <div className="absolute top-2 left-2 z-10 flex flex-col gap-1">
@@ -691,11 +793,24 @@ export default function PublicCatalog({ products, brandConfig, onAddSale }: Publ
         {renderSearchBarAndFilters()}
 
         {/* Products Title */}
-        <div className="flex items-center justify-between border-b border-neutral-100 pb-2">
-          <span className="text-xs font-bold text-neutral-400 uppercase tracking-widest">
-            {searchTerm ? `Resultados da busca` : `Catálogo de Peças`}
-          </span>
-          <span className="text-[11px] font-mono text-neutral-500 font-semibold">{filteredProducts.length} peças encontradas</span>
+        <div className="flex items-center justify-between border-b border-neutral-100 pb-2 gap-2 flex-wrap sm:flex-nowrap">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-[#7A6872] uppercase tracking-widest">
+              {searchTerm ? `Resultados da busca` : `Catálogo de Peças`}
+            </span>
+            <span className="text-[10px] font-mono text-neutral-400 font-semibold">({filteredProducts.length} peças encontradas)</span>
+          </div>
+          
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as any)}
+            className="text-[11px] font-bold text-[#7A6872] bg-[#F7F0F3] border border-[#E8D5DC] rounded-xl px-3 py-1.5 focus:border-[#C4708A] outline-none cursor-pointer transition-colors"
+          >
+            <option value="default">✨ Ordenar por</option>
+            <option value="price-asc">💵 Menor Preço</option>
+            <option value="price-desc">💰 Maior Preço</option>
+            <option value="newest">🆕 Novidades</option>
+          </select>
         </div>
 
         {/* Products Grid */}
@@ -708,7 +823,7 @@ export default function PublicCatalog({ products, brandConfig, onAddSale }: Publ
             </p>
             <button 
               onClick={() => { setSearchTerm(''); setSelectedCategory('Todos'); setSelectedBadge('all'); }}
-              className="text-xs bg-amber-650 text-white font-bold px-4 py-2 rounded-xl"
+              className="text-xs bg-[#C4708A] hover:bg-[#8B3A55] text-white font-bold px-4 py-2 rounded-xl transition-colors cursor-pointer"
             >
               Redefinir Filtros
             </button>
@@ -728,7 +843,7 @@ export default function PublicCatalog({ products, brandConfig, onAddSale }: Publ
                   id={`public-card-${p.id}`}
                   key={p.id}
                   onClick={() => handleOpenDetails(p)}
-                  className="bg-white rounded-2xl overflow-hidden border border-neutral-150 shadow-sm hover:shadow-md transition-all p-3 flex gap-4 relative cursor-pointer group active:scale-[0.99]"
+                  className="bg-white rounded-2xl overflow-hidden border border-neutral-150 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 p-3 flex gap-4 relative cursor-pointer group active:scale-[0.99]"
                 >
                   {/* Photo Container */}
                   <div className="relative w-24 h-24 rounded-xl bg-neutral-100 overflow-hidden shrink-0 shadow-inner">
@@ -797,7 +912,7 @@ export default function PublicCatalog({ products, brandConfig, onAddSale }: Publ
                           </span>
                         )}
                         {p.estoque !== undefined && p.estoque !== null && p.estoque > 0 && p.estoque <= 3 && (
-                          <span className="bg-amber-100 text-amber-800 text-[8.5px] font-extrabold px-2 py-0.5 rounded-md">
+                          <span className="bg-[#F9E0E8] text-[#8B3A55] text-[8.5px] font-extrabold px-2 py-0.5 rounded-md">
                             ⚡ Só {p.estoque} restando!
                           </span>
                         )}
@@ -909,18 +1024,28 @@ export default function PublicCatalog({ products, brandConfig, onAddSale }: Publ
 
       </div>
 
+      {/* Toast Notification (Part 2) */}
+      {toastMessage && (
+        <div className="fixed bottom-[88px] left-1/2 -translate-x-1/2 z-50 w-full max-w-xs">
+          <div className="mx-4 bg-[#2B2332]/95 backdrop-blur-md text-white text-xs font-semibold px-4 py-3 rounded-2xl flex items-center gap-2 shadow-lg border border-[#E8D5DC]/20 animate-slide-up">
+            <AlertCircle className="w-4.5 h-4.5 text-[#C4708A] shrink-0" />
+            <span className="flex-1">{toastMessage}</span>
+          </div>
+        </div>
+      )}
+
       {/* Bottom Floating Bar with Sacola / Cart Trigger */}
       <div className="fixed bottom-0 left-0 right-0 mx-auto max-w-md w-full bg-white/95 backdrop-blur-md border-t border-neutral-200/85 shrink-0 z-40 flex items-center justify-between p-4 px-5 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] rounded-t-2xl shadow-xl">
         <div className="flex flex-col">
           <span className="text-[10px] text-neutral-400 font-extrabold uppercase tracking-widest">Sua Sacola</span>
-          <span className="text-lg font-black text-amber-900 font-mono">
+          <span className="text-lg font-black text-[#2B1F28] font-mono">
             R$ {cartTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
         </div>
 
         <button
           onClick={() => setIsCartOpen(true)}
-          className="bg-amber-600 hover:bg-amber-700 active:scale-98 text-white font-extrabold text-sm py-3 px-5.5 rounded-2xl flex items-center gap-2 shadow-md transition-all cursor-pointer relative"
+          className="bg-[#C4708A] hover:bg-[#8B3A55] active:scale-98 text-white font-extrabold text-sm py-3 px-5.5 rounded-2xl flex items-center gap-2 shadow-md transition-all cursor-pointer relative"
         >
           <ShoppingBag className="w-5 h-5" />
           <span>Ver Sacola</span>
@@ -954,7 +1079,7 @@ export default function PublicCatalog({ products, brandConfig, onAddSale }: Publ
               </button>
 
               {/* Scrollable Content Part */}
-              <div className="flex-1 overflow-y-auto pb-10">
+              <div id="details-modal-scroll" className="flex-1 overflow-y-auto pb-10">
                 {/* Swipe Gallery Image Showcase */}
               <div className="relative h-80 bg-neutral-100 overflow-hidden shrink-0 border-b border-neutral-100">
                 <img 
@@ -987,7 +1112,7 @@ export default function PublicCatalog({ products, brandConfig, onAddSale }: Publ
 
                 {/* Overlaid Badges */}
                 <div className="absolute bottom-4 left-4 z-10 flex flex-wrap gap-1.5">
-                  <span className="bg-amber-600/90 backdrop-blur-xs text-white text-[10px] font-extrabold px-3 py-1 rounded-md shadow-xs">
+                  <span className="bg-[#C4708A]/90 backdrop-blur-xs text-white text-[10px] font-extrabold px-3 py-1 rounded-md shadow-xs">
                     {selectedProduct.category}
                   </span>
                   {selectedProduct.isNew && (
@@ -1027,7 +1152,7 @@ export default function PublicCatalog({ products, brandConfig, onAddSale }: Publ
                     <button
                       key={idx}
                       onClick={() => setActiveImageIndex(idx)}
-                      className={`w-14 h-14 rounded-lg overflow-hidden border-2 transition-all flex-none bg-white ${activeImageIndex === idx ? 'border-amber-600 scale-95 shadow-sm' : 'border-neutral-200 opacity-60'}`}
+                      className={`w-14 h-14 rounded-lg overflow-hidden border-2 transition-all flex-none bg-white ${activeImageIndex === idx ? 'border-[#C4708A] scale-95 shadow-sm' : 'border-neutral-200 opacity-60'}`}
                     >
                       <img 
                         src={img} 
@@ -1175,6 +1300,67 @@ export default function PublicCatalog({ products, brandConfig, onAddSale }: Publ
                   </div>
                 )}
 
+                {/* Related Products Section (Part 5) */}
+                {relatedProducts.length > 0 && (
+                  <div>
+                    <h4 className="text-[10px] font-extrabold text-[#7A6872] uppercase tracking-widest mb-2 flex items-center gap-1">
+                      <Sparkles className="w-3.5 h-3.5 text-[#C4708A]" />
+                      Combine Também Com
+                    </h4>
+                    <div className="flex items-center space-x-2 overflow-x-auto pb-2 scrollbar-none -mx-1 px-1">
+                      {relatedProducts.map((p) => {
+                        const hasPromo = p.isPromo && p.promoPrice;
+                        return (
+                          <div
+                            key={p.id}
+                            onClick={() => {
+                              setSelectedProduct(p);
+                              setActiveImageIndex(0);
+                              setSelectedSize('');
+                              const detailsContainer = document.getElementById('details-modal-scroll');
+                              if (detailsContainer) detailsContainer.scrollTop = 0;
+                            }}
+                            className="w-[120px] bg-white border border-[#E8D5DC] hover:border-[#C4708A] rounded-2xl p-2 shrink-0 cursor-pointer transition-all hover:scale-98 active:scale-95 flex flex-col justify-between"
+                          >
+                            <div className="aspect-square w-full rounded-xl overflow-hidden bg-neutral-100 mb-1.5 relative">
+                              <img
+                                src={p.imageUrl || (p.images && p.images[0]) || "https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=150&q=80"}
+                                alt={p.name}
+                                className="w-full h-full object-cover"
+                                referrerPolicy="no-referrer"
+                              />
+                              {hasPromo && (
+                                <span className="absolute top-1 left-1 bg-[#C4708A] text-white text-[8px] font-black px-1.5 py-0.5 rounded-md">
+                                  OFF
+                                </span>
+                              )}
+                            </div>
+                            <div>
+                              <p className="text-[10px] font-bold text-[#2B1F28] truncate mb-0.5">{p.name}</p>
+                              <div className="flex flex-wrap items-baseline gap-1">
+                                {hasPromo ? (
+                                  <>
+                                    <span className="text-[10px] font-black text-[#C4708A] font-mono">
+                                      R${p.promoPrice!.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </span>
+                                    <span className="text-[8px] text-neutral-400 line-through font-mono">
+                                      R${p.price.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </span>
+                                  </>
+                                ) : (
+                                  <span className="text-[10px] font-bold text-[#2B1F28] font-mono">
+                                    R${p.price.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 {/* Care & Maintenance instructions */}
                 {selectedProduct.careInstructions && (
                   <div>
@@ -1209,10 +1395,16 @@ export default function PublicCatalog({ products, brandConfig, onAddSale }: Publ
 
                     {isOutOfStock ? (
                       <button
-                        disabled
-                        className="flex-1 bg-neutral-150 text-neutral-400 font-extrabold text-sm py-3.5 rounded-2xl flex items-center justify-center gap-2 cursor-not-allowed shadow-none"
+                        onClick={() => {
+                          const msg = `Olá! 😊 Tenho interesse na peça *${selectedProduct.name}* do catálogo da ${brandConfig.brandName}. Pode me avisar quando estiver disponível novamente?`;
+                          let phone = brandConfig.whatsAppNumber ? brandConfig.whatsAppNumber.replace(/\D/g, '') : '';
+                          if (phone.length === 10 || phone.length === 11) phone = '55' + phone;
+                          const url = phone ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}` : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+                          window.open(url, '_blank');
+                        }}
+                        className="flex-1 bg-[#2B2332] hover:bg-[#3D2E42] active:scale-[0.97] text-white font-extrabold text-sm py-3.5 rounded-2xl flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer"
                       >
-                        Indisponível
+                        🔔 Avisar quando disponível
                       </button>
                     ) : specificSizeCartItem ? (
                       <div className="flex items-center bg-[#F9E0E8] border border-[#E8D5DC] rounded-2xl p-1 shadow-xs flex-1 max-w-[150px] justify-between">
@@ -1257,7 +1449,7 @@ export default function PublicCatalog({ products, brandConfig, onAddSale }: Publ
             {/* Header */}
             <div className="flex items-center justify-between border-b border-neutral-100 pb-4 shrink-0">
               <div className="flex items-center gap-2">
-                <ShoppingBag className="w-5 h-5 text-amber-600" />
+                <ShoppingBag className="w-5 h-5 text-[#C4708A]" />
                 <h3 className="text-base font-bold text-neutral-800">Sua Sacola de Compras</h3>
               </div>
               <button
@@ -1276,7 +1468,7 @@ export default function PublicCatalog({ products, brandConfig, onAddSale }: Publ
                 <p className="text-neutral-400 text-sm font-medium">Sua sacola de compras está vazia.</p>
                 <button
                   onClick={() => setIsCartOpen(false)}
-                  className="bg-amber-600 text-white font-bold text-xs py-2 px-4 rounded-xl shadow-xs"
+                  className="bg-[#C4708A] hover:bg-[#8B3A55] text-white font-bold text-xs py-2 px-4 rounded-xl transition-colors cursor-pointer"
                 >
                   Voltar para o catálogo
                 </button>
@@ -1358,7 +1550,7 @@ export default function PublicCatalog({ products, brandConfig, onAddSale }: Publ
                           value={custName}
                           onChange={(e) => setCustName(e.target.value)}
                           placeholder="Seu nome completo"
-                          className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-3 py-2 text-xs focus:border-amber-500 focus:bg-white outline-none text-neutral-800 font-medium"
+                          className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-3 py-2 text-xs focus:border-[#C4708A] focus:bg-white outline-none text-neutral-800 font-medium"
                         />
                       </div>
 
@@ -1368,16 +1560,16 @@ export default function PublicCatalog({ products, brandConfig, onAddSale }: Publ
                           id="cart-customer-phone"
                           type="tel"
                           value={custPhone}
-                          onChange={(e) => setCustPhone(e.target.value)}
-                          placeholder="DDD + Telefone"
-                          className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-3 py-2 text-xs focus:border-amber-500 focus:bg-white outline-none text-neutral-800 font-medium"
+                          onChange={(e) => setCustPhone(formatPhoneInput(e.target.value))}
+                          placeholder="(XX) XXXXX-XXXX"
+                          className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-3 py-2 text-xs focus:border-[#C4708A] focus:bg-white outline-none text-neutral-800 font-medium"
                         />
                       </div>
                     </div>
 
                     {/* Subtotal & Total */}
-                    <div className="bg-amber-50/55 border border-amber-100 p-3.5 rounded-2xl flex items-center justify-between">
-                      <span className="text-xs font-bold text-amber-900">Total do Pedido:</span>
+                    <div className="bg-[#F9E0E8]/40 border border-[#E8D5DC]/55 p-3.5 rounded-2xl flex items-center justify-between">
+                      <span className="text-xs font-bold text-[#2B1F28]">Total do Pedido:</span>
                       <span className="text-lg font-black text-neutral-950 font-mono">
                         R$ {cartTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </span>
