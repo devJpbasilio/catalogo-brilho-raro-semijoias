@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,400;1,600&family=JetBrains+Mono:wght@400;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,400;1,600&family=Cormorant+Garamond:wght@500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
 @import "tailwindcss";
 
 @theme {
@@ -14,6 +14,8 @@
   --color-brand-olive: #C4708A;
   --color-brand-accent-light: #F9E0E8;
   --color-brand-accent-hover: #8B3A55;
+  --color-brand-plum: #2B2332;      /* selo/ameixa profundo */
+  --color-brand-gold: #C9A24B;      /* acento dourado "brilho raro" (uso pontual) */
 
   /* Natural Tones Overrides mapped to the new Rosa & Prata colors to keep existing Tailwind classes beautiful and integrated! */
   --color-amber-50: #F9E0E8;
@@ -56,6 +58,35 @@
 body {
   background-color: #F7F0F3;
   color: #2B1F28;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Tipografia serifada mais refinada em títulos (menos "peso" cru). */
+.font-serif {
+  letter-spacing: -0.01em;
+}
+
+/* Nome da marca (wordmark) — Cormorant Garamond, elegante e delicada. */
+.brand-wordmark {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.05;
+}
+
+/* Respeita a preferência do sistema por menos movimento: neutraliza o excesso
+   de animações (pulse/bounce/ping) mantendo a interface funcional. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* Hide standard horizontal scrollbar on custom sliding element list */

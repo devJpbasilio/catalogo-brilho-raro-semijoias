@@ -5,18 +5,19 @@
 
 import React, { useState } from 'react';
 import { BrandConfig } from '../types';
-import { 
-  Settings, Sparkles, Image as ImageIcon, Database, Save, 
+import {
+  Settings, Sparkles, Image as ImageIcon, Database, Save,
   Trash2, Plus, AlertTriangle, RefreshCw, Check, Cloud, Smartphone,
-  Lock, Eye, EyeOff, Star
+  Star
 } from 'lucide-react';
 import ConfirmModal from './ConfirmModal';
 import { compressAndResizeImage } from '../lib/image-utils';
+import { uploadImage } from '../lib/storage';
 
 interface SettingsTabProps {
   brandConfig: BrandConfig;
   storageMode: 'cloud' | 'local';
-  firebaseAvailable: boolean;
+  cloudAvailable: boolean;
   onSaveConfig: (config: BrandConfig) => Promise<void>;
   onSeedData: () => Promise<void>;
   onToggleStorageMode: (mode: 'cloud' | 'local') => void;
@@ -40,7 +41,7 @@ const LOGO_PRESETS = [
 export default function SettingsTab({
   brandConfig,
   storageMode,
-  firebaseAvailable,
+  cloudAvailable,
   onSaveConfig,
   onSeedData,
   onToggleStorageMode
@@ -51,8 +52,6 @@ export default function SettingsTab({
   const [whatsAppNumber, setWhatsAppNumber] = useState(brandConfig.whatsAppNumber || '');
   const [categories, setCategories] = useState<string[]>(brandConfig.categories || []);
   const [newCategory, setNewCategory] = useState('');
-  const [adminPassword, setAdminPassword] = useState(brandConfig.adminPassword || '');
-  const [showPassword, setShowPassword] = useState(false);
   const [slogan, setSlogan] = useState(brandConfig.slogan || '');
   
   const [isSaving, setIsSaving] = useState(false);
@@ -129,7 +128,6 @@ export default function SettingsTab({
         bannerUrl,
         categories,
         whatsAppNumber: whatsAppNumber.trim(),
-        adminPassword: adminPassword.trim(),
         slogan: slogan.trim()
       });
       setSaveSuccess(true);
@@ -253,7 +251,7 @@ export default function SettingsTab({
                         if (file) {
                           try {
                             const compressed = await compressAndResizeImage(file, 200, 0.7);
-                            setLogoUrl(compressed);
+                            setLogoUrl(await uploadImage(compressed, 'brand'));
                           } catch (err: any) {
                             alert(err.message || 'Erro ao processar imagem.');
                           }
@@ -261,7 +259,7 @@ export default function SettingsTab({
                       }}
                     />
                   </label>
-                  {logoUrl.startsWith('data:image/') && (
+                  {(logoUrl.startsWith('data:image/') || logoUrl.includes('/storage/v1/object/public/')) && (
                     <button
                       type="button"
                       onClick={() => setLogoUrl('')}
@@ -316,7 +314,7 @@ export default function SettingsTab({
                         if (file) {
                           try {
                             const compressed = await compressAndResizeImage(file, 800, 0.6);
-                            setBannerUrl(compressed);
+                            setBannerUrl(await uploadImage(compressed, 'brand'));
                           } catch (err: any) {
                             alert(err.message || 'Erro ao processar imagem.');
                           }
@@ -324,7 +322,7 @@ export default function SettingsTab({
                       }}
                     />
                   </label>
-                  {bannerUrl.startsWith('data:image/') && (
+                  {(bannerUrl.startsWith('data:image/') || bannerUrl.includes('/storage/v1/object/public/')) && (
                     <button
                       type="button"
                       onClick={() => setBannerUrl('')}
@@ -458,8 +456,8 @@ export default function SettingsTab({
               <div className="space-y-0.5">
                 <span className="text-[10px] text-neutral-400 block uppercase font-bold tracking-wider">Serviço de Nuvem</span>
                 <span className="text-sm font-bold text-neutral-800 flex items-center gap-1.5">
-                  <Cloud className={`w-4 h-4 ${firebaseAvailable ? 'text-emerald-500' : 'text-neutral-300'}`} />
-                  Firestore {firebaseAvailable ? 'Conectado' : 'Não Configurado'}
+                  <Cloud className={`w-4 h-4 ${cloudAvailable ? 'text-emerald-500' : 'text-neutral-300'}`} />
+                  Supabase {cloudAvailable ? 'Conectado' : 'Não Configurado'}
                 </span>
               </div>
 
@@ -471,18 +469,18 @@ export default function SettingsTab({
                     : 'bg-red-50 text-red-700 border border-red-100'
                 }`}>
                   <span className={`w-1.5 h-1.5 rounded-full ${storageMode === 'cloud' ? 'bg-emerald-500' : 'bg-red-500'}`}></span>
-                  {storageMode === 'cloud' ? 'Nuvem Firestore' : 'Local Offline'}
+                  {storageMode === 'cloud' ? 'Nuvem Supabase' : 'Local Offline'}
                 </span>
               </div>
             </div>
 
             {/* Storage explanation */}
             <p className="text-[11px] text-neutral-500 leading-normal">
-              O sistema salva automaticamente todos os lançamentos no navegador do celular (Offline). Se o <strong>Firestore</strong> estiver conectado, você pode ativar o <strong>Modo Nuvem</strong> para que seus produtos, clientes e vendas fiquem salvos de forma segura e permanente na nuvem Firebase.
+              O sistema salva automaticamente todos os lançamentos no navegador do celular (Offline). Se o <strong>Supabase</strong> estiver conectado, você pode ativar o <strong>Modo Nuvem</strong> para que seus produtos, clientes e vendas fiquem salvos de forma segura e permanente na nuvem.
             </p>
 
             {/* Storage toggles */}
-            {firebaseAvailable && (
+            {cloudAvailable && (
               <div className="grid grid-cols-2 gap-3 pt-1">
                 <button
                   type="button"
@@ -514,60 +512,26 @@ export default function SettingsTab({
           </div>
         </div>
 
-        {/* ACCESS SECURITY SETTINGS CARD */}
-        <div className="bg-white rounded-2xl border border-amber-50 p-5 shadow-sm space-y-4">
+        {/* ACCESS SECURITY INFO CARD */}
+        <div className="bg-white rounded-2xl border border-amber-50 p-5 shadow-sm space-y-3">
           <h3 className="font-serif font-bold text-lg text-neutral-800 flex items-center gap-2 border-b border-neutral-100 pb-3">
-            <Lock className="w-5 h-5 text-amber-600" />
+            <Star className="w-5 h-5 text-amber-600" />
             Segurança & Controle de Acesso
           </h3>
-          
+
           <p className="text-xs text-neutral-500 leading-relaxed">
-            Proteja seu painel administrativo, cadastros de clientes, fluxo de caixa e relatórios de vendas com uma senha pessoal. 
+            O painel administrativo (cadastros de clientes, fluxo de caixa e relatórios) é protegido por
+            <strong> login seguro individual</strong>. Suas credenciais ficam guardadas com criptografia no
+            provedor de autenticação — nunca em texto puro no navegador ou no catálogo.
             <span className="text-amber-700 font-bold block mt-1">
-              ⚠️ O catálogo de fotos público para seus clientes continuará livre e acessível para que eles façam pedidos sem precisar de senha!
+              ⚠️ O catálogo público de fotos continua livre para suas clientes fazerem pedidos sem precisar de senha.
             </span>
           </p>
 
-          <div className="space-y-3">
-            <div>
-              <label className="block text-xs font-semibold text-neutral-600 mb-1">Senha do Painel Administrativo</label>
-              <div className="relative">
-                <input
-                  id="setting-admin-password"
-                  type={showPassword ? 'text' : 'password'}
-                  value={adminPassword}
-                  onChange={(e) => setAdminPassword(e.target.value)}
-                  placeholder="Deixe em branco para acesso livre sem senha"
-                  className="w-full bg-neutral-50 border border-neutral-200 rounded-xl pl-3.5 pr-12 py-2.5 text-sm focus:border-amber-500 focus:bg-white focus:ring-1 focus:ring-amber-500 transition-all outline-none text-neutral-800 font-mono tracking-widest font-semibold"
-                />
-                
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 focus:outline-none cursor-pointer p-1"
-                  title={showPassword ? "Ocultar senha" : "Ver senha"}
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-              
-              <div className="flex items-center justify-between mt-1.5">
-                <p className="text-[10px] text-neutral-400">
-                  {adminPassword 
-                    ? "✨ Proteção ativa: O painel exigirá esta senha ao abrir." 
-                    : "🔓 Acesso livre: Qualquer pessoa que abrir o aplicativo verá o painel."}
-                </p>
-                {adminPassword && (
-                  <button
-                    type="button"
-                    onClick={() => setAdminPassword('')}
-                    className="text-[10px] text-red-500 hover:text-red-700 font-semibold cursor-pointer"
-                  >
-                    Desativar Senha
-                  </button>
-                )}
-              </div>
-            </div>
+          <div className="bg-neutral-50 border border-neutral-150 rounded-xl p-3 text-[11px] text-neutral-500 leading-normal">
+            Para alterar a senha de acesso ou cadastrar um novo administrador, use o painel de autenticação da
+            sua conta na nuvem (Supabase Authentication). Assim, mesmo que alguém tenha o link do aplicativo,
+            não conseguirá abrir o painel administrativo sem as credenciais corretas.
           </div>
         </div>
 
@@ -575,7 +539,7 @@ export default function SettingsTab({
         <div className="flex items-center justify-between pt-2">
           <div className="text-xs text-neutral-500 font-medium">
             {saveSuccess && (
-              <span className="text-emerald-600 flex items-center gap-1 animate-bounce">
+              <span className="text-emerald-600 flex items-center gap-1">
                 <Check className="w-4 h-4 text-emerald-500 stroke-[3]" />
                 Ajustes salvos com sucesso!
               </span>

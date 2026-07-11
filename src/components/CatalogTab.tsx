@@ -8,10 +8,11 @@ import { Product, Customer, Sale, BrandConfig } from '../types';
 import ConfirmModal from './ConfirmModal';
 import { 
   Search, Plus, Tag, ToggleLeft, ToggleRight, Trash2, Edit3, 
-  ShoppingBag, Check, X, Sparkles, Image as ImageIcon, AlertCircle,
+  ShoppingBag, Check, X, Sparkles, AlertCircle,
   Share2, Copy, Send, ChevronDown, ChevronUp, Upload, Star, Download
 } from 'lucide-react';
 import { compressAndResizeImage } from '../lib/image-utils';
+import { uploadImage } from '../lib/storage';
 
 interface CatalogTabProps {
   products: Product[];
@@ -369,9 +370,11 @@ export default function CatalogTab({
       const file = files[i];
       try {
         const base64 = await compressAndResizeImage(file);
-        newBase64s.push(base64);
+        // Em modo nuvem, sobe para o Storage e guarda a URL; local mantém base64.
+        const url = await uploadImage(base64, 'products');
+        newBase64s.push(url);
       } catch (err) {
-        console.error('Error compressing image:', err);
+        console.error('Error processing image:', err);
         alert(err instanceof Error ? err.message : 'Erro ao processar imagem.');
       }
     }

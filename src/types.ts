@@ -73,7 +73,6 @@ export interface BrandConfig {
   bannerUrl: string;
   categories: string[];
   whatsAppNumber?: string; // Contact phone number to receive orders
-  adminPassword?: string; // Optional password to protect the admin panel
   slogan?: string; // Custom tagline/slogan for catalog home banner
 }
 

@@ -1,58 +1,45 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 import React, { useState } from 'react';
 import { BrandConfig } from '../types';
 import { Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { signInAdmin, friendlyAuthError } from '../lib/auth';
+import BrandLogo from './BrandLogo';
 
 interface AdminLoginProps {
   brandConfig: BrandConfig;
-  onLoginSuccess: () => void;
 }
 
-export default function AdminLogin({ brandConfig, onLoginSuccess }: AdminLoginProps) {
+export default function AdminLogin({ brandConfig }: AdminLoginProps) {
+  const [email, setEmail] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isLocked, setIsLocked] = useState(false);
   const [shouldShake, setShouldShake] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isSubmitting || isLocked) return;
+    if (isSubmitting) return;
 
-    setError(false);
+    setErrorMessage('');
     setShouldShake(false);
-
-    // Se não houver senha cadastrada, libera o acesso direto (mas o App.tsx já cuida disso)
-    if (!brandConfig.adminPassword) {
-      onLoginSuccess();
-      return;
-    }
-
     setIsSubmitting(true);
 
-    // Simulação rápida para parecer profissional e premium
-    setTimeout(() => {
+    try {
+      await signInAdmin(email, passwordInput);
+      // O App reage automaticamente à mudança de estado de autenticação.
+    } catch (err) {
+      setErrorMessage(friendlyAuthError(err));
+      setShouldShake(true);
+      setPasswordInput('');
+      setTimeout(() => setShouldShake(false), 400);
+    } finally {
       setIsSubmitting(false);
-      if (passwordInput.trim() === brandConfig.adminPassword) {
-        sessionStorage.setItem('admin_authenticated', 'true');
-        onLoginSuccess();
-      } else {
-        setError(true);
-        setShouldShake(true);
-        setIsLocked(true);
-        setPasswordInput('');
-        
-        // Remove animação shake após 400ms
-        setTimeout(() => {
-          setShouldShake(false);
-        }, 400);
-
-        // Desbloqueia botão após 2 segundos
-        setTimeout(() => {
-          setIsLocked(false);
-        }, 2000);
-      }
-    }, 600);
+    }
   };
 
   return (
@@ -62,22 +49,22 @@ export default function AdminLogin({ brandConfig, onLoginSuccess }: AdminLoginPr
           {/* Logo da Loja */}
           {brandConfig.logoUrl ? (
             <div className="w-20 h-20 rounded-full overflow-hidden border border-[#E8D5DC] shadow-sm mb-4 flex items-center justify-center bg-white">
-              <img 
-                src={brandConfig.logoUrl} 
-                alt="Logo" 
+              <img
+                src={brandConfig.logoUrl}
+                alt="Logo"
                 className="w-full h-full object-cover"
                 referrerPolicy="no-referrer"
               />
             </div>
           ) : (
-            <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-4xl mb-4">
-              💎
+            <div className="mb-4">
+              <BrandLogo size={72} />
             </div>
           )}
 
           {/* Nome da Loja */}
-          <h2 className="font-serif font-bold text-2xl admin-login-text-primary tracking-tight">
-            {brandConfig.brandName || 'Semijoias Pro'}
+          <h2 className="brand-wordmark text-3xl admin-login-text-primary">
+            {brandConfig.brandName || 'Brilho Raro Semijoias'}
           </h2>
           <p className="text-[10px] font-semibold tracking-wider uppercase mt-1 admin-login-text-secondary">
             Painel Administrativo
@@ -85,40 +72,64 @@ export default function AdminLogin({ brandConfig, onLoginSuccess }: AdminLoginPr
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* E-mail */}
           <div>
-            <label className="admin-login-label">
-              Senha de Acesso
+            <label className="admin-login-label" htmlFor="login-email-input">
+              E-mail de Acesso
+            </label>
+            <input
+              id="login-email-input"
+              type="email"
+              required
+              autoFocus
+              autoComplete="username"
+              disabled={isSubmitting}
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                if (errorMessage) setErrorMessage('');
+              }}
+              placeholder="voce@exemplo.com"
+              className="admin-login-input"
+            />
+          </div>
+
+          {/* Senha */}
+          <div>
+            <label className="admin-login-label" htmlFor="login-password-input">
+              Senha
             </label>
             <div className="relative">
               <input
                 id="login-password-input"
                 type={showPassword ? 'text' : 'password'}
                 required
-                autoFocus
-                disabled={isSubmitting || isLocked}
+                autoComplete="current-password"
+                disabled={isSubmitting}
                 value={passwordInput}
                 onChange={(e) => {
                   setPasswordInput(e.target.value);
-                  if (error) setError(false);
+                  if (errorMessage) setErrorMessage('');
                 }}
                 placeholder="Digite a senha"
                 className="admin-login-input"
               />
-              
+
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                disabled={isSubmitting || isLocked}
+                disabled={isSubmitting}
+                aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7A6872] hover:text-[#2B1F28] focus:outline-none cursor-pointer p-1"
               >
                 {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </button>
             </div>
 
-            {error && (
+            {errorMessage && (
               <div className="flex items-center gap-1.5 text-[#9B2335] font-semibold mt-2">
                 <AlertCircle className="w-4 h-4" />
-                <span className="admin-login-text-error">Senha incorreta. Tente novamente.</span>
+                <span className="admin-login-text-error">{errorMessage}</span>
               </div>
             )}
           </div>
@@ -126,7 +137,7 @@ export default function AdminLogin({ brandConfig, onLoginSuccess }: AdminLoginPr
           <button
             id="btn-submit-login"
             type="submit"
-            disabled={isSubmitting || isLocked || !passwordInput}
+            disabled={isSubmitting || !email || !passwordInput}
             className="admin-login-btn"
           >
             {isSubmitting ? (
@@ -137,8 +148,6 @@ export default function AdminLogin({ brandConfig, onLoginSuccess }: AdminLoginPr
                 </svg>
                 Verificando...
               </span>
-            ) : isLocked ? (
-              'Bloqueado (Aguarde 2s)'
             ) : (
               'Entrar no Painel'
             )}

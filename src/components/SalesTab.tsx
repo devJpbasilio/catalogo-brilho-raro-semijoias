@@ -5,10 +5,12 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Sale, Product, Customer, SaleItem, Installment } from '../types';
-import { 
-  ShoppingBag, Plus, Search, Calendar, User, DollarSign, 
+import { formatBRL } from '../lib/money';
+import { buildInstallments, applyInstallmentPayment, markSaleFullyPaid } from '../lib/sales';
+import {
+  ShoppingBag, Plus, Search, Calendar, User,
   Check, X, Trash2, ArrowUpRight, Clock, AlertCircle, ShoppingCart, Minus,
-  MessageSquare, ChevronDown, ChevronUp, CheckCircle2, Bell, Sparkles, Filter
+  MessageSquare, ChevronDown, ChevronUp, CheckCircle2, Bell
 } from 'lucide-react';
 import ConfirmModal from './ConfirmModal';
 
@@ -180,38 +182,9 @@ export default function SalesTab({
     return `Olá, ${sale.customerName}! ✨\n\nPassando para lembrar amigavelmente que hoje vence a parcela *${inst.installmentNumber}/${sale.installmentsCount || 1}* da sua compra de semijoias (Identificador: *#${sale.id.replace('order_', '').substring(0, 5).toUpperCase()}*).\n\n💰 *Valor:* R$ ${inst.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}\n📅 *Vencimento:* ${new Date(inst.dueDate + 'T12:00:00').toLocaleDateString('pt-BR')}\n\nSe você já efetuou o pagamento, por favor desconsidere este lembrete. Agradecemos muito a sua preferência! 🥰`;
   };
 
-  // Math helper for installments distribution
-  const calculateInstallmentList = (total: number, entry: number, count: number, dueDate: string) => {
-    const financed = Math.max(0, total - entry);
-    if (financed <= 0) return [];
-    
-    const valuePerInstallment = parseFloat((financed / count).toFixed(2));
-    const list: Installment[] = [];
-    
-    for (let i = 1; i <= count; i++) {
-      const d = new Date(dueDate + 'T12:00:00');
-      if (i > 1) {
-        d.setMonth(d.getMonth() + (i - 1));
-      }
-      
-      list.push({
-        id: `inst_${Math.random().toString(36).substring(2, 9)}`,
-        installmentNumber: i,
-        amount: i === count ? parseFloat((financed - valuePerInstallment * (count - 1)).toFixed(2)) : valuePerInstallment,
-        dueDate: d.toISOString().split('T')[0],
-        status: 'pending'
-      });
-    }
-    return list;
-  };
-
-  // Helper to format numeric value as BRL currency representation
-  const formatBRL = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-    }).format(value);
-  };
+  // Delega para o domínio puro e testado (divisão exata em centavos).
+  const calculateInstallmentList = (total: number, entry: number, count: number, dueDate: string) =>
+    buildInstallments(total, entry, count, dueDate);
 
   // Helper to handle typing on a BRL currency input
   const handleBRLInputChange = (inputValue: string, setter: (val: number) => void) => {
@@ -500,7 +473,7 @@ export default function SalesTab({
     e.preventDefault();
     if (!approvingOrder) return;
 
-    let finalCustId = approveCustomerId;
+    const finalCustId = approveCustomerId;
     let finalCustName = approvingOrder.customerName;
     let finalCustPhone = approvingOrder.customerPhone;
 
@@ -576,58 +549,15 @@ export default function SalesTab({
     }
   };
 
-  // Directly settle full remaining debt of standard sale or legacy credit
+  // Quitação integral (domínio puro e testado).
   const handleMarkAsPaid = async (sale: Sale) => {
-    if (sale.paymentMethod === 'fiado' && sale.installments) {
-      // Mark all installments of this fiado as paid
-      const paidInsts = sale.installments.map(inst => ({
-        ...inst,
-        status: 'paid' as const,
-        paidDate: new Date().toISOString()
-      }));
-      await onAddSale({
-        ...sale,
-        status: 'paid',
-        installments: paidInsts,
-        outstandingBalance: 0
-      });
-    } else {
-      // Legacy or regular sale full settlement
-      await onAddSale({
-        ...sale,
-        status: 'paid',
-        ...(sale.outstandingBalance !== undefined && { outstandingBalance: 0 })
-      });
-    }
+    await onAddSale(markSaleFullyPaid(sale));
   };
 
-  // Quitar individual installment inside a fiado sale
+  // Quitar uma parcela individual (domínio puro e testado).
   const handleSettleInstallment = async (sale: Sale, targetInstId: string) => {
     if (!sale.installments) return;
-    
-    const updatedInsts = sale.installments.map(inst => {
-      if (inst.id === targetInstId) {
-        return {
-          ...inst,
-          status: 'paid' as const,
-          paidDate: new Date().toISOString()
-        };
-      }
-      return inst;
-    });
-
-    const pendingSum = updatedInsts
-      .filter(i => i.status === 'pending')
-      .reduce((sum, i) => sum + i.amount, 0);
-
-    const isAllPaid = pendingSum === 0;
-
-    await onAddSale({
-      ...sale,
-      status: isAllPaid ? 'paid' : 'partial',
-      installments: updatedInsts,
-      outstandingBalance: parseFloat(pendingSum.toFixed(2))
-    });
+    await onAddSale(applyInstallmentPayment(sale, targetInstId));
   };
 
   // Filter available products based on search term (code, name, part of name)
@@ -650,7 +580,7 @@ export default function SalesTab({
         {/* Total Sold */}
         <div className="bg-white rounded-2xl border border-amber-50 p-4 shadow-xs flex items-center justify-between">
           <div className="space-y-1">
-            <span className="text-[11px] text-neutral-400 font-bold uppercase tracking-wider block">Total Vendido (Confirmado)</span>
+            <span className="text-[11px] text-neutral-400 font-bold uppercase tracking-wider block">Faturamento (Vendas Confirmadas)</span>
             <span className="text-xl font-bold text-neutral-800">
               R$ {stats.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </span>
@@ -691,11 +621,11 @@ export default function SalesTab({
       {activeFiadoReminders.length > 0 && (
         <div 
           id="reminder-alert-banner"
-          className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm animate-pulse"
+          className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm"
         >
           <div className="flex items-center gap-3">
             <div className="bg-amber-100 text-amber-800 p-2 rounded-xl border border-amber-200">
-              <Bell className="w-5 h-5 animate-bounce" />
+              <Bell className="w-5 h-5" />
             </div>
             <div className="text-center sm:text-left">
               <h4 className="text-sm font-bold text-amber-900">Cobranças e Lembretes do Dia</h4>
@@ -789,7 +719,7 @@ export default function SalesTab({
         >
           Pedidos do Catálogo ({sales.filter(s => s.status === 'order').length})
           {sales.filter(s => s.status === 'order').length > 0 && (
-            <span className="bg-amber-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full animate-bounce">
+            <span className="bg-amber-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full">
               Novo
             </span>
           )}
@@ -1586,7 +1516,7 @@ export default function SalesTab({
             </button>
 
             <h3 className="font-serif font-bold text-xl text-neutral-800 flex items-center gap-2 mb-1">
-              <CheckCircle2 className="w-5 h-5 text-purple-600 animate-pulse" />
+              <CheckCircle2 className="w-5 h-5 text-purple-600" />
               Aprovar & Finalizar Venda
             </h3>
             <p className="text-xs text-neutral-500 mb-4">

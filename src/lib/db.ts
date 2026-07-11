@@ -3,17 +3,17 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
-  collection,
-  doc,
-  getDocs,
-  setDoc as firebaseSetDoc,
-  deleteDoc,
-  getDoc,
-  writeBatch
-} from 'firebase/firestore';
-import { db, firebaseEnabled } from './firebase';
+import { supabase, supabaseEnabled } from './supabase';
 import { Product, Customer, Sale, BrandConfig, CashEntry } from '../types';
+import { brandLogoDataUri } from './brand';
+import { shouldDecrementStock } from './sales';
+import { deriveCashEntriesFromSales } from './cashflow';
+
+/**
+ * Camada de dados. Sempre grava localmente (localStorage) e, em modo nuvem,
+ * também no Supabase (Postgres). O modelo é "documento": cada linha guarda o
+ * objeto completo na coluna `data` (jsonb) — ver supabase-schema.sql.
+ */
 
 export enum OperationType {
   CREATE = 'create',
@@ -24,79 +24,30 @@ export enum OperationType {
   WRITE = 'write',
 }
 
-export interface FirestoreErrorInfo {
-  error: string;
-  operationType: OperationType;
-  path: string | null;
-  authInfo: {
-    userId?: string | null;
-    email?: string | null;
-    emailVerified?: boolean | null;
-    isAnonymous?: boolean | null;
-    tenantId?: string | null;
-    providerInfo?: {
-      providerId?: string | null;
-      email?: string | null;
-    }[];
-  }
-}
-
-export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
-  const errInfo: FirestoreErrorInfo = {
+export function handleDbError(error: unknown, operationType: OperationType, path: string | null) {
+  const info = {
     error: error instanceof Error ? error.message : String(error),
-    authInfo: {
-      userId: null,
-      email: null,
-      emailVerified: null,
-      isAnonymous: null,
-      tenantId: null,
-      providerInfo: []
-    },
     operationType,
-    path
+    path,
   };
-  const stringifiedError = JSON.stringify(errInfo);
-  console.error('Firestore Error (Graceful Fallback Active): ', stringifiedError);
+  console.error('Supabase Error (Graceful Fallback Active): ', JSON.stringify(info));
 }
 
-// Helper to strip undefined values recursively so Firestore setDoc doesn't throw errors
-function cleanUndefined<T>(obj: T): T {
-  if (obj === null || obj === undefined) return obj;
-  if (Array.isArray(obj)) {
-    return obj.map(item => cleanUndefined(item)) as unknown as T;
-  }
-  if (typeof obj === 'object') {
-    const cleaned: any = {};
-    for (const key of Object.keys(obj)) {
-      const value = (obj as any)[key];
-      if (value !== undefined) {
-        cleaned[key] = cleanUndefined(value);
-      }
-    }
-    return cleaned as T;
-  }
-  return obj;
-}
-
-async function setDoc(docRef: any, data: any) {
-  return firebaseSetDoc(docRef, cleanUndefined(data));
-}
-
-// Storage keys for localStorage fallback
+// Storage keys for localStorage
 const KEYS = {
   PRODUCTS: 'semijoias_products',
   CUSTOMERS: 'semijoias_customers',
   SALES: 'semijoias_sales',
   CASH_FLOW: 'semijoias_cash_flow',
-  BRAND_CONFIG: 'semijoias_brand_config'
+  BRAND_CONFIG: 'semijoias_brand_config',
 };
 
-// Default Brand Config
+// Default Brand Config (logo = mark próprio da marca)
 const DEFAULT_BRAND_CONFIG: BrandConfig = {
   brandName: 'Brilho Raro Semijoias',
-  logoUrl: 'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=150&auto=format&fit=crop&q=80',
+  logoUrl: brandLogoDataUri,
   bannerUrl: 'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=1200&auto=format&fit=crop&q=80',
-  categories: ['Brincos', 'Colares', 'Anéis', 'Pulseiras', 'Tornozeleiras', 'Conjuntos']
+  categories: ['Brincos', 'Colares', 'Anéis', 'Pulseiras', 'Tornozeleiras', 'Conjuntos'],
 };
 
 // Beautiful high-quality demo products
@@ -109,7 +60,7 @@ const MOCK_PRODUCTS: Product[] = [
     price: 129.90,
     imageUrl: 'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=400&auto=format&fit=crop&q=80',
     isAvailable: true,
-    createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString()
+    createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
   },
   {
     id: 'prod_2',
@@ -119,7 +70,7 @@ const MOCK_PRODUCTS: Product[] = [
     price: 89.90,
     imageUrl: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=400&auto=format&fit=crop&q=80',
     isAvailable: true,
-    createdAt: new Date(Date.now() - 9 * 24 * 60 * 60 * 1000).toISOString()
+    createdAt: new Date(Date.now() - 9 * 24 * 60 * 60 * 1000).toISOString(),
   },
   {
     id: 'prod_3',
@@ -129,7 +80,7 @@ const MOCK_PRODUCTS: Product[] = [
     price: 149.90,
     imageUrl: 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=400&auto=format&fit=crop&q=80',
     isAvailable: true,
-    createdAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString()
+    createdAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(),
   },
   {
     id: 'prod_4',
@@ -139,7 +90,7 @@ const MOCK_PRODUCTS: Product[] = [
     price: 119.90,
     imageUrl: 'https://images.unsplash.com/photo-1611591437281-460bfbe1220a?w=400&auto=format&fit=crop&q=80',
     isAvailable: true,
-    createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+    createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
   },
   {
     id: 'prod_5',
@@ -149,7 +100,7 @@ const MOCK_PRODUCTS: Product[] = [
     price: 79.90,
     imageUrl: 'https://images.unsplash.com/photo-1543294001-f7cbfe92237e?w=400&auto=format&fit=crop&q=80',
     isAvailable: true,
-    createdAt: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString()
+    createdAt: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString(),
   },
   {
     id: 'prod_6',
@@ -159,8 +110,8 @@ const MOCK_PRODUCTS: Product[] = [
     price: 249.90,
     imageUrl: 'https://images.unsplash.com/photo-1617038260897-41a1f14a8ca0?w=400&auto=format&fit=crop&q=80',
     isAvailable: true,
-    createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString()
-  }
+    createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+  },
 ];
 
 // Mock Customers
@@ -168,12 +119,12 @@ const MOCK_CUSTOMERS: Customer[] = [
   { id: 'cust_1', name: 'Ana Souza', phone: '(11) 98765-4321', createdAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString() },
   { id: 'cust_2', name: 'Mariana Costa', phone: '(21) 99888-7766', createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString() },
   { id: 'cust_3', name: 'Gabriela Lima', phone: '(31) 99123-4567', createdAt: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000).toISOString() },
-  { id: 'cust_4', name: 'Patrícia Rocha', phone: '(11) 97766-5544', createdAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString() }
+  { id: 'cust_4', name: 'Patrícia Rocha', phone: '(11) 97766-5544', createdAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString() },
 ];
 
 // Helper to determine storage status (local vs cloud)
 export function getStorageMode(): 'cloud' | 'local' {
-  if (!firebaseEnabled || !db) return 'local';
+  if (!supabaseEnabled || !supabase) return 'local';
   const preference = localStorage.getItem('semijoias_storage_pref');
   return preference === 'local' ? 'local' : 'cloud';
 }
@@ -201,28 +152,38 @@ const setLocal = <T>(key: string, value: T): void => {
   }
 };
 
+// Supabase helpers (modelo documento: { id, data })
+async function cloudList<T>(table: string): Promise<T[]> {
+  const { data, error } = await supabase!.from(table).select('data');
+  if (error) throw error;
+  return (data ?? []).map((row: { data: T }) => row.data);
+}
+
+async function cloudUpsert<T extends { id: string }>(table: string, obj: T): Promise<void> {
+  const { error } = await supabase!.from(table).upsert({ id: obj.id, data: obj });
+  if (error) throw error;
+}
+
+async function cloudDelete(table: string, id: string): Promise<void> {
+  const { error } = await supabase!.from(table).delete().eq('id', id);
+  if (error) throw error;
+}
+
 // PRODUCT OPERATIONS
 export async function getProducts(): Promise<Product[]> {
   if (getStorageMode() === 'cloud') {
     try {
-      const colRef = collection(db!, 'products');
-      const snapshot = await getDocs(colRef);
-      const list: Product[] = [];
-      snapshot.forEach(doc => {
-        list.push({ id: doc.id, ...doc.data() } as Product);
-      });
-      // Sort by creation date descending
+      const list = await cloudList<Product>('products');
       return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     } catch (e) {
-      console.error('Firestore getProducts error, falling back to local:', e);
-      handleFirestoreError(e, OperationType.GET, 'products');
+      console.error('Supabase getProducts error, falling back to local:', e);
+      handleDbError(e, OperationType.GET, 'products');
     }
   }
   return getLocal<Product[]>(KEYS.PRODUCTS, []).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 }
 
 export async function saveProduct(product: Product): Promise<void> {
-  // Sync locally first
   const localList = getLocal<Product[]>(KEYS.PRODUCTS, []);
   const index = localList.findIndex(p => p.id === product.id);
   if (index >= 0) {
@@ -234,11 +195,10 @@ export async function saveProduct(product: Product): Promise<void> {
 
   if (getStorageMode() === 'cloud') {
     try {
-      const docRef = doc(db!, 'products', product.id);
-      await setDoc(docRef, product);
+      await cloudUpsert('products', product);
     } catch (e) {
-      console.error('Firestore saveProduct error:', e);
-      handleFirestoreError(e, OperationType.WRITE, `products/${product.id}`);
+      console.error('Supabase saveProduct error:', e);
+      handleDbError(e, OperationType.WRITE, `products/${product.id}`);
       throw e;
     }
   }
@@ -246,16 +206,14 @@ export async function saveProduct(product: Product): Promise<void> {
 
 export async function deleteProduct(id: string): Promise<void> {
   const localList = getLocal<Product[]>(KEYS.PRODUCTS, []);
-  const filtered = localList.filter(p => p.id !== id);
-  setLocal(KEYS.PRODUCTS, filtered);
+  setLocal(KEYS.PRODUCTS, localList.filter(p => p.id !== id));
 
   if (getStorageMode() === 'cloud') {
     try {
-      const docRef = doc(db!, 'products', id);
-      await deleteDoc(docRef);
+      await cloudDelete('products', id);
     } catch (e) {
-      console.error('Firestore deleteProduct error:', e);
-      handleFirestoreError(e, OperationType.DELETE, `products/${id}`);
+      console.error('Supabase deleteProduct error:', e);
+      handleDbError(e, OperationType.DELETE, `products/${id}`);
     }
   }
 }
@@ -264,16 +222,11 @@ export async function deleteProduct(id: string): Promise<void> {
 export async function getCustomers(): Promise<Customer[]> {
   if (getStorageMode() === 'cloud') {
     try {
-      const colRef = collection(db!, 'customers');
-      const snapshot = await getDocs(colRef);
-      const list: Customer[] = [];
-      snapshot.forEach(doc => {
-        list.push({ id: doc.id, ...doc.data() } as Customer);
-      });
+      const list = await cloudList<Customer>('customers');
       return list.sort((a, b) => a.name.localeCompare(b.name));
     } catch (e) {
-      console.error('Firestore getCustomers error, falling back to local:', e);
-      handleFirestoreError(e, OperationType.GET, 'customers');
+      console.error('Supabase getCustomers error, falling back to local:', e);
+      handleDbError(e, OperationType.GET, 'customers');
     }
   }
   return getLocal<Customer[]>(KEYS.CUSTOMERS, []).sort((a, b) => a.name.localeCompare(b.name));
@@ -291,11 +244,10 @@ export async function saveCustomer(customer: Customer): Promise<void> {
 
   if (getStorageMode() === 'cloud') {
     try {
-      const docRef = doc(db!, 'customers', customer.id);
-      await setDoc(docRef, customer);
+      await cloudUpsert('customers', customer);
     } catch (e) {
-      console.error('Firestore saveCustomer error:', e);
-      handleFirestoreError(e, OperationType.WRITE, `customers/${customer.id}`);
+      console.error('Supabase saveCustomer error:', e);
+      handleDbError(e, OperationType.WRITE, `customers/${customer.id}`);
       throw e;
     }
   }
@@ -303,28 +255,24 @@ export async function saveCustomer(customer: Customer): Promise<void> {
 
 export async function deleteCustomer(id: string): Promise<void> {
   const localList = getLocal<Customer[]>(KEYS.CUSTOMERS, []);
-  const filtered = localList.filter(c => c.id !== id);
-  setLocal(KEYS.CUSTOMERS, filtered);
+  setLocal(KEYS.CUSTOMERS, localList.filter(c => c.id !== id));
 
-  // Also remove relevant sales customer linking if needed (usually we keep sales but marked as deleted customer, or set customerId to 'balcao')
+  // Mantém as vendas, mas desvincula o cliente excluído (vira "balcão").
   const sales = getLocal<Sale[]>(KEYS.SALES, []);
   const updatedSales = sales.map(s => s.customerId === id ? { ...s, customerId: 'balcao', customerName: `${s.customerName} (Excluído)` } : s);
   setLocal(KEYS.SALES, updatedSales);
 
   if (getStorageMode() === 'cloud') {
     try {
-      const docRef = doc(db!, 'customers', id);
-      await deleteDoc(docRef);
-      
-      // Update sales in firestore to keep transactions consistent on the cloud
+      await cloudDelete('customers', id);
+      // Atualiza no Supabase as vendas que foram desvinculadas.
       const salesToUpdate = updatedSales.filter(s => s.customerId === 'balcao' && sales.find(os => os.id === s.id)?.customerId === id);
       for (const sale of salesToUpdate) {
-        const saleDocRef = doc(db!, 'sales', sale.id);
-        await setDoc(saleDocRef, sale);
+        await cloudUpsert('sales', sale);
       }
     } catch (e) {
-      console.error('Firestore deleteCustomer error:', e);
-      handleFirestoreError(e, OperationType.DELETE, `customers/${id}`);
+      console.error('Supabase deleteCustomer error:', e);
+      handleDbError(e, OperationType.DELETE, `customers/${id}`);
     }
   }
 }
@@ -333,16 +281,11 @@ export async function deleteCustomer(id: string): Promise<void> {
 export async function getSales(): Promise<Sale[]> {
   if (getStorageMode() === 'cloud') {
     try {
-      const colRef = collection(db!, 'sales');
-      const snapshot = await getDocs(colRef);
-      const list: Sale[] = [];
-      snapshot.forEach(doc => {
-        list.push({ id: doc.id, ...doc.data() } as Sale);
-      });
+      const list = await cloudList<Sale>('sales');
       return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     } catch (e) {
-      console.error('Firestore getSales error, falling back to local:', e);
-      handleFirestoreError(e, OperationType.GET, 'sales');
+      console.error('Supabase getSales error, falling back to local:', e);
+      handleDbError(e, OperationType.GET, 'sales');
     }
   }
   return getLocal<Sale[]>(KEYS.SALES, []).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -351,7 +294,7 @@ export async function getSales(): Promise<Sale[]> {
 export async function saveSale(sale: Sale): Promise<void> {
   const localList = getLocal<Sale[]>(KEYS.SALES, []);
   const index = localList.findIndex(s => s.id === sale.id);
-  const isNewSale = index < 0;
+  const previousSale = index >= 0 ? localList[index] : null;
 
   if (index >= 0) {
     localList[index] = sale;
@@ -360,8 +303,9 @@ export async function saveSale(sale: Sale): Promise<void> {
   }
   setLocal(KEYS.SALES, localList);
 
-  // central stock decrement logic for new sales
-  if (isNewSale) {
+  // Baixa de estoque centralizada e idempotente (ver shouldDecrementStock):
+  // só na transição para venda confirmada, evitando decremento duplicado.
+  if (shouldDecrementStock(previousSale, sale)) {
     const localProducts = getLocal<Product[]>(KEYS.PRODUCTS, []);
     let productsUpdated = false;
 
@@ -372,13 +316,11 @@ export async function saveSale(sale: Sale): Promise<void> {
         if (prod.estoque !== undefined && prod.estoque !== null) {
           prod.estoque = Math.max(0, prod.estoque - item.quantity);
           productsUpdated = true;
-          // Update in Firestore immediately if in cloud storage mode
           if (getStorageMode() === 'cloud') {
             try {
-              const docRef = doc(db!, 'products', prod.id);
-              await setDoc(docRef, prod);
+              await cloudUpsert('products', prod);
             } catch (e) {
-              console.error('Firestore saveProduct stock-decrement error:', e);
+              console.error('Supabase saveProduct stock-decrement error:', e);
             }
           }
         }
@@ -390,53 +332,78 @@ export async function saveSale(sale: Sale): Promise<void> {
     }
   }
 
-  // Manage cash flow automatically
-  await updateCashFlowFromSales();
-
+  // Grava a venda na nuvem ANTES de reconstruir o caixa, para que
+  // updateCashFlowFromSales (que lê as vendas da nuvem no modo cloud) já
+  // enxergue esta venda ao recalcular as entradas de caixa.
   if (getStorageMode() === 'cloud') {
     try {
-      const docRef = doc(db!, 'sales', sale.id);
-      await setDoc(docRef, sale);
+      await cloudUpsert('sales', sale);
     } catch (e) {
-      console.error('Firestore saveSale error:', e);
-      handleFirestoreError(e, OperationType.WRITE, `sales/${sale.id}`);
+      console.error('Supabase saveSale error:', e);
+      handleDbError(e, OperationType.WRITE, `sales/${sale.id}`);
       throw e;
     }
   }
+
+  await updateCashFlowFromSales();
 }
 
 export async function deleteSale(id: string): Promise<void> {
   const localList = getLocal<Sale[]>(KEYS.SALES, []);
-  const filtered = localList.filter(s => s.id !== id);
-  setLocal(KEYS.SALES, filtered);
+  const saleToDelete = localList.find(s => s.id === id);
+  setLocal(KEYS.SALES, localList.filter(s => s.id !== id));
 
-  await updateCashFlowFromSales();
+  // Estorna o estoque das peças da venda excluída. Pedidos do catálogo
+  // (status 'order') nunca deram baixa, então não devem ser estornados.
+  if (saleToDelete && saleToDelete.status !== 'order') {
+    const localProducts = getLocal<Product[]>(KEYS.PRODUCTS, []);
+    let productsUpdated = false;
 
-  if (getStorageMode() === 'cloud') {
-    try {
-      const docRef = doc(db!, 'sales', id);
-      await deleteDoc(docRef);
-    } catch (e) {
-      console.error('Firestore deleteSale error:', e);
-      handleFirestoreError(e, OperationType.DELETE, `sales/${id}`);
+    for (const item of saleToDelete.items) {
+      const prodIdx = localProducts.findIndex(p => p.id === item.productId);
+      if (prodIdx >= 0) {
+        const prod = localProducts[prodIdx];
+        if (prod.estoque !== undefined && prod.estoque !== null) {
+          prod.estoque = prod.estoque + item.quantity;
+          productsUpdated = true;
+          if (getStorageMode() === 'cloud') {
+            try {
+              await cloudUpsert('products', prod);
+            } catch (e) {
+              console.error('Supabase stock-restore error:', e);
+            }
+          }
+        }
+      }
+    }
+
+    if (productsUpdated) {
+      setLocal(KEYS.PRODUCTS, localProducts);
     }
   }
+
+  // Remove a venda da nuvem ANTES de reconstruir o caixa.
+  if (getStorageMode() === 'cloud') {
+    try {
+      await cloudDelete('sales', id);
+    } catch (e) {
+      console.error('Supabase deleteSale error:', e);
+      handleDbError(e, OperationType.DELETE, `sales/${id}`);
+    }
+  }
+
+  await updateCashFlowFromSales();
 }
 
 // CASH FLOW OPERATIONS
 export async function getCashEntries(): Promise<CashEntry[]> {
   if (getStorageMode() === 'cloud') {
     try {
-      const colRef = collection(db!, 'cash_flow');
-      const snapshot = await getDocs(colRef);
-      const list: CashEntry[] = [];
-      snapshot.forEach(doc => {
-        list.push({ id: doc.id, ...doc.data() } as CashEntry);
-      });
+      const list = await cloudList<CashEntry>('cash_flow');
       return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     } catch (e) {
-      console.error('Firestore getCashEntries error, falling back to local:', e);
-      handleFirestoreError(e, OperationType.GET, 'cash_flow');
+      console.error('Supabase getCashEntries error, falling back to local:', e);
+      handleDbError(e, OperationType.GET, 'cash_flow');
     }
   }
   return getLocal<CashEntry[]>(KEYS.CASH_FLOW, []).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -454,131 +421,72 @@ export async function saveCashEntry(entry: CashEntry): Promise<void> {
 
   if (getStorageMode() === 'cloud') {
     try {
-      const docRef = doc(db!, 'cash_flow', entry.id);
-      await setDoc(docRef, entry);
+      await cloudUpsert('cash_flow', entry);
     } catch (e) {
-      console.error('Firestore saveCashEntry error:', e);
-      handleFirestoreError(e, OperationType.WRITE, `cash_flow/${entry.id}`);
+      console.error('Supabase saveCashEntry error:', e);
+      handleDbError(e, OperationType.WRITE, `cash_flow/${entry.id}`);
     }
   }
 }
 
-// Helper to rebuild/update Cash Flow entries from paid sales automatically
-// This keeps the cash flow in perfect sync
+// Reconstrói/atualiza as entradas de Cash Flow derivadas das vendas.
+// Mantém o caixa em sincronia perfeita com as vendas.
 export async function updateCashFlowFromSales(): Promise<void> {
-  const sales = getLocal<Sale[]>(KEYS.SALES, []);
-  const currentEntries = getLocal<CashEntry[]>(KEYS.CASH_FLOW, []);
-  
-  // Keep manually added entries (entries without saleId), but replace entries with saleId
-  const manualEntries = currentEntries.filter(e => !e.saleId);
-  
-  const salesEntries: CashEntry[] = [];
-  
-  sales.forEach(s => {
-    if (s.status === 'order') return; // orders do not affect cash flow
-    
-    // Support legacy paymentMethod 'cash' and new non-fiado methods
-    if (s.paymentMethod !== 'fiado' && s.paymentMethod !== 'credit') {
-      let mappedMethod: 'pix' | 'card' | 'cash' | 'fiado' = 'cash';
-      if (s.paymentMethod === 'pix') {
-        mappedMethod = 'pix';
-      } else if (s.paymentMethod === 'credit_card' || s.paymentMethod === 'debit_card') {
-        mappedMethod = 'card';
-      } else if (s.paymentMethod === 'cash') {
-        mappedMethod = 'cash';
-      }
-      
-      salesEntries.push({
-        id: `cash_sale_${s.id}`,
-        type: 'in',
-        amount: s.totalAmount,
-        description: `Venda #${s.id.substring(0, 5)} - Cliente: ${s.customerName}`,
-        date: s.date,
-        saleId: s.id,
-        createdAt: s.createdAt,
-        paymentMethod: mappedMethod
-      });
-    } else {
-      // Fiado/Credit sale with installments and potential down payment
-      // 1. Check down payment
-      if (s.downPayment && s.downPayment > 0) {
-        salesEntries.push({
-          id: `cash_sale_down_${s.id}`,
-          type: 'in',
-          amount: s.downPayment,
-          description: `Entrada Venda Fiado #${s.id.substring(0, 5)} - Cliente: ${s.customerName}`,
-          date: s.date,
-          saleId: s.id,
-          createdAt: s.createdAt,
-          paymentMethod: 'fiado'
-        });
-      }
-      
-      // 2. Check paid installments
-      if (s.installments) {
-        s.installments.forEach(inst => {
-          if (inst.status === 'paid') {
-            salesEntries.push({
-              id: `cash_sale_inst_${s.id}_${inst.installmentNumber}`,
-              type: 'in',
-              amount: inst.amount,
-              description: `Parcela ${inst.installmentNumber}/${s.installmentsCount || 1} Recebida #${s.id.substring(0, 5)} - Cliente: ${s.customerName}`,
-              date: inst.paidDate ? inst.paidDate.split('T')[0] : s.date,
-              saleId: s.id,
-              createdAt: inst.paidDate || s.createdAt,
-              paymentMethod: 'fiado'
-            });
-          }
-        });
-      } else if (s.status === 'paid') {
-        // Legacy credit sale marked as fully paid
-        salesEntries.push({
-          id: `cash_sale_full_${s.id}`,
-          type: 'in',
-          amount: s.totalAmount,
-          description: `Quitação Venda Fiado #${s.id.substring(0, 5)} - Cliente: ${s.customerName}`,
-          date: s.date,
-          saleId: s.id,
-          createdAt: s.createdAt,
-          paymentMethod: 'fiado'
-        });
-      }
+  // Em modo nuvem, a fonte de verdade das vendas é o Supabase. Ler apenas o
+  // localStorage aqui (ex.: em um dispositivo novo com cache local vazio) faria
+  // esta função apagar entradas de caixa históricas legítimas da nuvem.
+  let sales: Sale[];
+  if (getStorageMode() === 'cloud') {
+    try {
+      sales = await cloudList<Sale>('sales');
+    } catch (e) {
+      console.error('Supabase read for cash flow sync failed, using local sales:', e);
+      handleDbError(e, OperationType.LIST, 'sales');
+      sales = getLocal<Sale[]>(KEYS.SALES, []);
     }
-  });
+  } else {
+    sales = getLocal<Sale[]>(KEYS.SALES, []);
+  }
+  const currentEntries = getLocal<CashEntry[]>(KEYS.CASH_FLOW, []);
+
+  // Mantém lançamentos manuais (sem saleId), substitui os derivados de vendas.
+  const manualEntries = currentEntries.filter(e => !e.saleId);
+
+  // Derivação (pura e testada) das entradas de caixa a partir das vendas.
+  const salesEntries = deriveCashEntriesFromSales(sales);
 
   const merged = [...manualEntries, ...salesEntries].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
-  
+
   setLocal(KEYS.CASH_FLOW, merged);
 
   if (getStorageMode() === 'cloud') {
     try {
-      // 1. Get all current cash entries in Firestore to identify orphans
-      const colRef = collection(db!, 'cash_flow');
-      const snapshot = await getDocs(colRef);
-      const existingFirestoreIds: string[] = [];
-      snapshot.forEach(doc => {
-        existingFirestoreIds.push(doc.id);
-      });
+      // 1. IDs de caixa atualmente na nuvem, para identificar órfãos.
+      const existing = await supabase!.from('cash_flow').select('id');
+      if (existing.error) throw existing.error;
+      const existingIds: string[] = (existing.data ?? []).map((r: { id: string }) => r.id);
 
-      // 2. Identify entries starting with 'cash_sale_' that are no longer in our merged list (orphans)
+      // 2. Entradas 'cash_sale_' que não estão mais na lista reconstruída.
       const mergedIds = new Set(merged.map(e => e.id));
-      const orphans = existingFirestoreIds.filter(id => id.startsWith('cash_sale_') && !mergedIds.has(id));
+      const orphans = existingIds.filter(id => id.startsWith('cash_sale_') && !mergedIds.has(id));
 
-      // 3. Delete those orphaned entries from Firestore
-      for (const orphanId of orphans) {
-        await deleteDoc(doc(db!, 'cash_flow', orphanId));
+      // 3. Remove os órfãos.
+      if (orphans.length > 0) {
+        const { error } = await supabase!.from('cash_flow').delete().in('id', orphans);
+        if (error) throw error;
       }
 
-      // 4. Create or update the active ones
-      for (const entry of merged) {
-        const docRef = doc(db!, 'cash_flow', entry.id);
-        await setDoc(docRef, entry);
+      // 4. Cria/atualiza os ativos (upsert em lote).
+      if (merged.length > 0) {
+        const rows = merged.map(e => ({ id: e.id, data: e }));
+        const { error } = await supabase!.from('cash_flow').upsert(rows);
+        if (error) throw error;
       }
     } catch (e) {
-      console.error('Firestore error syncing cash flow:', e);
-      handleFirestoreError(e, OperationType.WRITE, 'cash_flow');
+      console.error('Supabase error syncing cash flow:', e);
+      handleDbError(e, OperationType.WRITE, 'cash_flow');
     }
   }
 }
@@ -587,14 +495,14 @@ export async function updateCashFlowFromSales(): Promise<void> {
 export async function getBrandConfig(): Promise<BrandConfig> {
   if (getStorageMode() === 'cloud') {
     try {
-      const docRef = doc(db!, 'config', 'brand');
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        return docSnap.data() as BrandConfig;
+      const { data, error } = await supabase!.from('config').select('data').eq('id', 'brand').maybeSingle();
+      if (error) throw error;
+      if (data?.data) {
+        return data.data as BrandConfig;
       }
     } catch (e) {
-      console.error('Firestore getBrandConfig error, falling back to local:', e);
-      handleFirestoreError(e, OperationType.GET, 'config/brand');
+      console.error('Supabase getBrandConfig error, falling back to local:', e);
+      handleDbError(e, OperationType.GET, 'config/brand');
     }
   }
   return getLocal<BrandConfig>(KEYS.BRAND_CONFIG, DEFAULT_BRAND_CONFIG);
@@ -605,11 +513,11 @@ export async function saveBrandConfig(config: BrandConfig): Promise<void> {
 
   if (getStorageMode() === 'cloud') {
     try {
-      const docRef = doc(db!, 'config', 'brand');
-      await setDoc(docRef, config);
+      const { error } = await supabase!.from('config').upsert({ id: 'brand', data: config });
+      if (error) throw error;
     } catch (e) {
-      console.error('Firestore saveBrandConfig error:', e);
-      handleFirestoreError(e, OperationType.WRITE, 'config/brand');
+      console.error('Supabase saveBrandConfig error:', e);
+      handleDbError(e, OperationType.WRITE, 'config/brand');
     }
   }
 }
@@ -617,104 +525,78 @@ export async function saveBrandConfig(config: BrandConfig): Promise<void> {
 // SEED INITIAL DEMO DATA
 export async function seedInitialData(force = false): Promise<void> {
   const currentProducts = getLocal<Product[]>(KEYS.PRODUCTS, []);
-  
-  // Don't overwrite if data exists unless forced
+
+  // Não sobrescreve dados existentes, a menos que forçado.
   if (currentProducts.length > 0 && !force) {
     return;
   }
 
-  // Save brand config
   setLocal(KEYS.BRAND_CONFIG, DEFAULT_BRAND_CONFIG);
-  
-  // Save products
   setLocal(KEYS.PRODUCTS, MOCK_PRODUCTS);
-  
-  // Save customers
   setLocal(KEYS.CUSTOMERS, MOCK_CUSTOMERS);
-
-  // Let's create some realistic initial sales:
-  // 1. Paid sale (dinheiro à vista)
-  // 2. Pending sale (fiado)
-  const sale1Id = 'sale_101';
-  const sale2Id = 'sale_102';
-  const sale3Id = 'sale_103';
 
   const initialSales: Sale[] = [
     {
-      id: sale1Id,
+      id: 'sale_101',
       customerId: 'cust_1',
       customerName: 'Ana Souza',
       customerPhone: '(11) 98765-4321',
       items: [
-        { productId: 'prod_1', productName: 'Brinco de Argola Cravejada Ouro 18k', price: 129.90, quantity: 1 }
+        { productId: 'prod_1', productName: 'Brinco de Argola Cravejada Ouro 18k', price: 129.90, quantity: 1 },
       ],
       totalAmount: 129.90,
       paymentMethod: 'cash',
       status: 'paid',
       date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString()
+      createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
     },
     {
-      id: sale2Id,
+      id: 'sale_102',
       customerId: 'cust_2',
       customerName: 'Mariana Costa',
       customerPhone: '(21) 99888-7766',
       items: [
         { productId: 'prod_2', productName: 'Colar Veneziana Ponto de Luz Ouro', price: 89.90, quantity: 1 },
-        { productId: 'prod_4', productName: 'Pulseira Elo Português com Coração', price: 119.90, quantity: 1 }
+        { productId: 'prod_4', productName: 'Pulseira Elo Português com Coração', price: 119.90, quantity: 1 },
       ],
       totalAmount: 209.80,
-      paymentMethod: 'credit', // Fiado
+      paymentMethod: 'credit',
       status: 'pending',
       date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
+      createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
     },
     {
-      id: sale3Id,
+      id: 'sale_103',
       customerId: 'cust_3',
       customerName: 'Gabriela Lima',
       customerPhone: '(31) 99123-4567',
       items: [
-        { productId: 'prod_5', productName: 'Tornozeleira Asa de Anjo Prata 925', price: 79.90, quantity: 1 }
+        { productId: 'prod_5', productName: 'Tornozeleira Asa de Anjo Prata 925', price: 79.90, quantity: 1 },
       ],
       totalAmount: 79.90,
-      paymentMethod: 'credit', // Fiado but paid later
+      paymentMethod: 'credit',
       status: 'paid',
       date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString()
-    }
+      createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    },
   ];
 
   setLocal(KEYS.SALES, initialSales);
 
-  // Re-generate Cash flow entries
   await updateCashFlowFromSales();
 
-  // If in cloud mode, attempt to upload everything to firestore
+  // Em modo nuvem, sobe tudo para o Supabase.
   if (getStorageMode() === 'cloud') {
     try {
-      console.log('Seeding Firestore database...');
-      // Save brand config
+      console.log('Seeding Supabase database...');
       await saveBrandConfig(DEFAULT_BRAND_CONFIG);
-
-      // Save products
-      for (const prod of MOCK_PRODUCTS) {
-        await saveProduct(prod);
-      }
-
-      // Save customers
-      for (const cust of MOCK_CUSTOMERS) {
-        await saveCustomer(cust);
-      }
-
-      // Save sales
-      for (const sale of initialSales) {
-        await saveSale(sale);
-      }
-      
-      console.log('Firestore seed completed.');
+      for (const prod of MOCK_PRODUCTS) await cloudUpsert('products', prod);
+      for (const cust of MOCK_CUSTOMERS) await cloudUpsert('customers', cust);
+      for (const sale of initialSales) await cloudUpsert('sales', sale);
+      await updateCashFlowFromSales();
+      console.log('Supabase seed completed.');
     } catch (e) {
-      console.error('Firestore seeding failed:', e);
+      console.error('Supabase seeding failed:', e);
     }
   }
 }

@@ -3,7 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { LayoutDashboard, Grid, ShoppingBag, Users, TrendingUp, Settings, HelpCircle, LogOut } from 'lucide-react';
+import { LayoutDashboard, Grid, ShoppingBag, Users, TrendingUp, Settings, LogOut } from 'lucide-react';
+import BrandLogo from './BrandLogo';
 
 export type TabId = 'dashboard' | 'catalog' | 'sales' | 'customers' | 'financial' | 'settings';
 
@@ -13,9 +14,10 @@ interface NavbarProps {
   storageMode: 'cloud' | 'local';
   hasPassword?: boolean;
   onLogout?: () => void;
+  brandName?: string;
 }
 
-export default function Navbar({ activeTab, onTabChange, storageMode, hasPassword, onLogout }: NavbarProps) {
+export default function Navbar({ activeTab, onTabChange, storageMode, hasPassword, onLogout, brandName = 'Brilho Raro Semijoias' }: NavbarProps) {
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'catalog', label: 'Catálogo', icon: Grid },
@@ -30,15 +32,15 @@ export default function Navbar({ activeTab, onTabChange, storageMode, hasPasswor
       {/* Desktop Sidebar / Top Header (Hidden on Mobile) */}
       <aside id="desktop-nav" className="hidden md:flex flex-col w-64 bg-[#2B2332] border-r border-[#3D2E42] h-screen sticky top-0 py-6 px-4 shrink-0">
         <div className="px-3 mb-8">
-          <div className="flex items-center space-x-2 text-white mb-1">
-            <ShoppingBag className="w-6 h-6 text-[#C4708A] fill-[#C4708A]/10" />
-            <span className="font-serif font-bold text-xl tracking-wide text-white">Semijoias Pro</span>
+          <div className="flex items-center gap-2 mb-1.5">
+            <BrandLogo size={40} onDark />
+            <span className="brand-wordmark text-xl text-white">{brandName}</span>
           </div>
-          <p className="text-[11px] text-neutral-300 font-medium">Sistema de Gestão & Catálogo</p>
+          <p className="text-[11px] text-neutral-300 font-medium pl-0.5">Sistema de Gestão & Catálogo</p>
           
           <div className="mt-4 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#3D2E42] border border-[#E8D5DC]/10 text-xs text-neutral-200">
             <span className={`w-2 h-2 rounded-full ${storageMode === 'cloud' ? 'bg-emerald-500' : 'bg-red-400'}`}></span>
-            {storageMode === 'cloud' ? 'Nuvem Firestore' : 'Armazenamento Local'}
+            {storageMode === 'cloud' ? 'Nuvem Supabase' : 'Armazenamento Local'}
           </div>
         </div>
 

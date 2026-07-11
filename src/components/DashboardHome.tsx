@@ -6,9 +6,10 @@
 import React, { useMemo } from 'react';
 import { Product, Customer, Sale, CashEntry, BrandConfig } from '../types';
 import { TabId } from './Navbar';
-import { 
-  Sparkles, TrendingUp, DollarSign, Users, ShoppingBag, 
-  PackageX, AlertCircle, Calendar, ArrowUpRight, ArrowDownLeft, 
+import { formatBRL } from '../lib/money';
+import {
+  Sparkles, TrendingUp, DollarSign, Users, ShoppingBag,
+  PackageX, AlertCircle,
   MessageCircle, Percent, ChevronRight
 } from 'lucide-react';
 
@@ -30,13 +31,6 @@ export default function DashboardHome({
   onTabChange
 }: DashboardHomeProps) {
   
-  const formatBRL = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-    }).format(value);
-  };
-
   // 1.1 Dynamic Greeting and Portuguese Date
   const greeting = useMemo(() => {
     const hrs = new Date().getHours();
@@ -234,7 +228,7 @@ export default function DashboardHome({
         <div className="space-y-1">
           <h2 className="font-serif font-bold text-2xl text-neutral-800 tracking-tight flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-brand-rosewood fill-brand-rosewood/20" />
-            {greeting}, {brandConfig.brandName}! ✨
+            {greeting}, {brandConfig.brandName}
           </h2>
           <p className="text-xs text-neutral-500 font-medium">{formattedDate}</p>
         </div>
@@ -304,7 +298,7 @@ export default function DashboardHome({
           </div>
           <div className="flex items-center justify-between border-t border-neutral-100 pt-2.5 mt-2">
             <span className="text-[10px] text-neutral-400 font-medium">Saldo devedor pendente</span>
-            <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${kpiData.isFiadoHigh ? 'bg-red-100 text-red-700 animate-pulse' : 'bg-red-50 text-red-600'}`}>
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${kpiData.isFiadoHigh ? 'bg-red-100 text-red-700' : 'bg-red-50 text-red-600'}`}>
               {kpiData.isFiadoHigh ? 'Risco Alto (>30%)' : 'Estável'}
             </span>
           </div>
@@ -363,7 +357,7 @@ export default function DashboardHome({
                 {lateFiadoCustomers.slice(0, 4).map((item, idx) => {
                   // Determine dot color
                   let dotColor = 'bg-yellow-400';
-                  if (item.daysCount > 30) dotColor = 'bg-red-500 animate-pulse';
+                  if (item.daysCount > 30) dotColor = 'bg-red-500';
                   else if (item.daysCount >= 15) dotColor = 'bg-amber-500';
 
                   return (

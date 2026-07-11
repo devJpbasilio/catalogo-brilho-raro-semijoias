@@ -3,18 +3,20 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="theme-color" content="#2B2332" />
     <title>Brilho Raro Semijoias</title>
   </head>
   <body>
     <div id="root"></div>
     
     <!-- REGISTRO DO MODAL DE RECIBO (CUPOM) -->
-    <div id="receipt-modal-container" class="receipt-modal-overlay hidden">
+    <div id="receipt-modal-container" class="receipt-modal-overlay hidden" style="display: none;">
       <div class="receipt-modal-content">
         <div class="receipt-paper" id="receipt-print-area">
           <div class="receipt-header">
             <img id="receipt-store-logo" class="receipt-logo" src="" alt="Logo" style="display: none;" />
-            <h1 id="receipt-store-name" class="receipt-store-name">Semijoias Pro</h1>
+            <h1 id="receipt-store-name" class="receipt-store-name">Brilho Raro Semijoias</h1>
             <p class="receipt-subtitle">Comprovante de Venda</p>
           </div>
           
@@ -83,7 +85,7 @@
       window.abrirRecibo = function(dadosVenda) {
         if (!dadosVenda) return;
         
-        let storeName = 'Semijoias Pro';
+        let storeName = 'Brilho Raro Semijoias';
         let logoUrl = '';
         try {
           const savedConfig = localStorage.getItem('semijoias_brand_config');
@@ -283,9 +285,11 @@
         
         document.getElementById('receipt-close-btn').onclick = function() {
           modal.classList.add('hidden');
+          modal.style.display = 'none';
         };
-        
+
         modal.classList.remove('hidden');
+        modal.style.display = 'flex';
       };
     </script>
 

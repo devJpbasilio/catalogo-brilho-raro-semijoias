@@ -6,8 +6,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Product, BrandConfig } from '../types';
 import { 
-  Search, ShoppingBag, Plus, Minus, Trash2, X, Check, ArrowLeft, 
-  HelpCircle, Send, Share2, Sparkles, Heart, Tag, Info, Star, 
+  Search, ShoppingBag, Plus, Minus, Trash2, X,
+  HelpCircle, Send, Share2, Sparkles, Heart, Tag, Info, Star,
   ChevronLeft, ChevronRight, Eye, AlertCircle
 } from 'lucide-react';
 
@@ -407,7 +407,7 @@ export default function PublicCatalog({ products, brandConfig, onAddSale }: Publ
       <div className="space-y-4 pt-1 flex flex-col">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-serif font-bold text-neutral-800 flex items-center gap-1.5 uppercase tracking-wider">
-            <ShoppingBag className="w-4 h-4 text-[#C4708A] animate-pulse" />
+            <ShoppingBag className="w-4 h-4 text-[#C4708A]" />
             Nossa Coleção Completa
           </h2>
         </div>
@@ -445,7 +445,7 @@ export default function PublicCatalog({ products, brandConfig, onAddSale }: Publ
                 : 'bg-white text-neutral-600 border border-neutral-200 hover:bg-neutral-50'
             }`}
           >
-            💖 Ver Tudo
+            Ver Tudo
           </button>
           {newArrivals.length > 0 && (
             <button
@@ -543,7 +543,7 @@ export default function PublicCatalog({ products, brandConfig, onAddSale }: Publ
 
             {/* Brand Info */}
             <div>
-              <h2 className="font-serif font-black text-2xl text-[#2B1F28] tracking-tight">
+              <h2 className="brand-wordmark text-3xl text-[#2B1F28]">
                 {brandConfig.brandName}
               </h2>
               {brandConfig.slogan && (
@@ -555,7 +555,7 @@ export default function PublicCatalog({ products, brandConfig, onAddSale }: Publ
 
             {/* Welcome Text */}
             <p className="text-xs text-[#2B1F28] leading-relaxed font-semibold">
-              Bem-vinda ao nosso catálogo! ✨ Explore peças únicas selecionadas especialmente para você.
+              Bem-vinda ao nosso catálogo. Explore peças únicas selecionadas especialmente para você.
             </p>
 
             {/* Action button */}
@@ -601,7 +601,7 @@ export default function PublicCatalog({ products, brandConfig, onAddSale }: Publ
           </div>
           <div className="text-white min-w-0 flex-1">
             <span className="inline-block text-[8px] sm:text-[10px] uppercase font-extrabold tracking-widest text-[#F9E0E8] bg-[#2B2332]/40 px-2 py-0.5 rounded-full border border-[#C4708A]/20">Catálogo Interativo</span>
-            <h1 className="text-base sm:text-xl font-serif font-bold leading-tight tracking-tight drop-shadow-md truncate mt-0.5 sm:mt-1">{brandConfig.brandName}</h1>
+            <h1 className="brand-wordmark text-xl sm:text-2xl leading-tight drop-shadow-md truncate mt-0.5 sm:mt-1">{brandConfig.brandName}</h1>
             {brandConfig.slogan && (
               <p className="text-[10px] sm:text-[11px] text-neutral-200 line-clamp-1 italic font-medium mt-0.5 drop-shadow-sm">{brandConfig.slogan}</p>
             )}
@@ -621,7 +621,7 @@ export default function PublicCatalog({ products, brandConfig, onAddSale }: Publ
                 <div className="flex items-center justify-between">
                   <h2 className="text-sm font-serif font-bold text-neutral-800 flex items-center gap-1.5 uppercase tracking-wider">
                     <Tag className="w-4 h-4 text-rose-500 fill-rose-500" />
-                    Promoções Imperdíveis 🏷️
+                    Promoções Imperdíveis
                   </h2>
                   <span className="text-[10px] text-rose-600 font-extrabold uppercase tracking-wider">Ofertas</span>
                 </div>
@@ -707,7 +707,7 @@ export default function PublicCatalog({ products, brandConfig, onAddSale }: Publ
                 <div className="flex items-center justify-between">
                   <h2 className="text-sm font-serif font-bold text-neutral-800 flex items-center gap-1.5 uppercase tracking-wider">
                     <Sparkles className="w-4 h-4 text-[#C4708A] fill-[#C4708A]" />
-                    Novidades da Coleção ✨
+                    Novidades da Coleção
                   </h2>
                   <span className="text-[10px] text-[#8B3A55] font-extrabold uppercase tracking-wider">Lançamentos</span>
                 </div>
@@ -806,17 +806,17 @@ export default function PublicCatalog({ products, brandConfig, onAddSale }: Publ
             onChange={(e) => setSortBy(e.target.value as any)}
             className="text-[11px] font-bold text-[#7A6872] bg-[#F7F0F3] border border-[#E8D5DC] rounded-xl px-3 py-1.5 focus:border-[#C4708A] outline-none cursor-pointer transition-colors"
           >
-            <option value="default">✨ Ordenar por</option>
-            <option value="price-asc">💵 Menor Preço</option>
-            <option value="price-desc">💰 Maior Preço</option>
-            <option value="newest">🆕 Novidades</option>
+            <option value="default">Ordenar por</option>
+            <option value="price-asc">Menor Preço</option>
+            <option value="price-desc">Maior Preço</option>
+            <option value="newest">Novidades</option>
           </select>
         </div>
 
         {/* Products Grid */}
         {filteredProducts.length === 0 ? (
           <div className="bg-white rounded-3xl border border-neutral-150 p-10 text-center my-6 space-y-3.5">
-            <HelpCircle className="w-12 h-12 text-neutral-300 mx-auto animate-pulse" />
+            <HelpCircle className="w-12 h-12 text-neutral-300 mx-auto" />
             <h3 className="text-base font-bold text-neutral-800">Nenhum produto disponível</h3>
             <p className="text-xs text-neutral-500 leading-relaxed max-w-xs mx-auto">
               Não encontramos nenhuma semijoia que combine com seus filtros ou termos de pesquisa no momento.
@@ -1050,7 +1050,7 @@ export default function PublicCatalog({ products, brandConfig, onAddSale }: Publ
           <ShoppingBag className="w-5 h-5" />
           <span>Ver Sacola</span>
           {cartItemsCount > 0 && (
-            <span className="absolute -top-1.5 -right-1.5 bg-emerald-500 border-2 border-white text-white rounded-full text-[10px] font-black w-6 h-6 flex items-center justify-center shadow-md animate-bounce">
+            <span className="absolute -top-1.5 -right-1.5 bg-emerald-500 border-2 border-white text-white rounded-full text-[10px] font-black w-6 h-6 flex items-center justify-center shadow-md">
               {cartItemsCount}
             </span>
           )}
@@ -1063,7 +1063,6 @@ export default function PublicCatalog({ products, brandConfig, onAddSale }: Publ
         const hasPromo = selectedProduct.isPromo && selectedProduct.promoPrice;
         const finalPrice = hasPromo ? selectedProduct.promoPrice! : selectedProduct.price;
         const discountRate = hasPromo ? Math.round(((selectedProduct.price - selectedProduct.promoPrice!) / selectedProduct.price) * 100) : 0;
-        const cartItem = cart.find(item => item.product.id === selectedProduct.id);
         const isFavorite = favorites.includes(selectedProduct.id);
 
         return (

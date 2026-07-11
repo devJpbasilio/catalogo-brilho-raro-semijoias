@@ -5,10 +5,11 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { Customer, Sale, Installment } from '../types';
-import { 
-  User, Plus, Search, Phone, History, DollarSign, Calendar, 
+import { applyInstallmentPayment, markSaleFullyPaid, payDownSale } from '../lib/sales';
+import {
+  User, Plus, Search, Phone, History, Calendar,
   Trash2, Edit3, X, CheckCircle2, MessageSquare, AlertTriangle, Eye,
-  ChevronDown, ChevronUp, Clock, Check, MessageCircle, ShoppingBag
+  ChevronDown, ChevronUp, Check, MessageCircle, ShoppingBag
 } from 'lucide-react';
 import ConfirmModal from './ConfirmModal';
 
@@ -204,49 +205,12 @@ export default function CustomersTab({
 
     let remainingPayment = amountToPay;
 
+    // Distribui o pagamento da mais antiga para a mais nova (domínio puro/testado).
     for (const sale of pendingSales) {
       if (remainingPayment <= 0) break;
-
-      const updatedSale = { ...sale };
-
-      if (updatedSale.installments && updatedSale.installments.length > 0) {
-        // Structured fiado: pay off oldest pending installments
-        const updatedInsts = updatedSale.installments.map(inst => {
-          if (inst.status === 'pending' && remainingPayment >= inst.amount) {
-            remainingPayment -= inst.amount;
-            return {
-              ...inst,
-              status: 'paid' as const,
-              paidDate: new Date().toISOString()
-            };
-          }
-          return inst;
-        });
-
-        const pendingSum = updatedInsts
-          .filter(i => i.status === 'pending')
-          .reduce((sum, i) => sum + i.amount, 0);
-
-        updatedSale.installments = updatedInsts;
-        updatedSale.outstandingBalance = parseFloat(pendingSum.toFixed(2));
-        updatedSale.status = pendingSum === 0 ? 'paid' : 'partial';
-
-        await onUpdateSale(updatedSale);
-      } else {
-        // Legacy credit sale
-        const saleOutstanding = sale.outstandingBalance !== undefined ? sale.outstandingBalance : sale.totalAmount;
-        if (remainingPayment >= saleOutstanding) {
-          remainingPayment -= saleOutstanding;
-          updatedSale.outstandingBalance = 0;
-          updatedSale.status = 'paid';
-        } else {
-          updatedSale.outstandingBalance = parseFloat((saleOutstanding - remainingPayment).toFixed(2));
-          updatedSale.status = 'partial';
-          remainingPayment = 0;
-        }
-
-        await onUpdateSale(updatedSale);
-      }
+      const { sale: updatedSale, leftover } = payDownSale(sale, remainingPayment);
+      remainingPayment = leftover;
+      await onUpdateSale(updatedSale);
     }
 
     setSettleAmount('');
@@ -267,60 +231,18 @@ export default function CustomersTab({
       confirmText: 'Quitar Venda',
       isDanger: false,
       onConfirm: async () => {
-        if (sale.paymentMethod === 'fiado' && sale.installments) {
-          const paidInsts = sale.installments.map(inst => ({
-            ...inst,
-            status: 'paid' as const,
-            paidDate: new Date().toISOString()
-          }));
-          await onUpdateSale({
-            ...sale,
-            status: 'paid',
-            installments: paidInsts,
-            outstandingBalance: 0
-          });
-        } else {
-          await onUpdateSale({
-            ...sale,
-            status: 'paid',
-            outstandingBalance: 0
-          });
-        }
+        await onUpdateSale(markSaleFullyPaid(sale));
         setConfirmConfig(prev => ({ ...prev, isOpen: false }));
         alert('Venda quitada com sucesso!');
       }
     });
   };
 
-  // Settle single installment inside history list
+  // Quitar uma parcela individual (domínio puro e testado).
   const handleSettleSingleInstallment = async (sale: Sale, instId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!sale.installments) return;
-
-    const updatedInsts = sale.installments.map(inst => {
-      if (inst.id === instId) {
-        return {
-          ...inst,
-          status: 'paid' as const,
-          paidDate: new Date().toISOString()
-        };
-      }
-      return inst;
-    });
-
-    const pendingSum = updatedInsts
-      .filter(i => i.status === 'pending')
-      .reduce((sum, i) => sum + i.amount, 0);
-
-    const isAllPaid = pendingSum === 0;
-
-    await onUpdateSale({
-      ...sale,
-      status: isAllPaid ? 'paid' : 'partial',
-      installments: updatedInsts,
-      outstandingBalance: parseFloat(pendingSum.toFixed(2))
-    });
-
+    await onUpdateSale(applyInstallmentPayment(sale, instId));
     alert('Parcela quitada com sucesso!');
   };
 
@@ -524,7 +446,7 @@ export default function CustomersTab({
                           e.stopPropagation();
                           const formattedPhone = cust.phone.replace(/\D/g, '');
                           const cleanPhone = formattedPhone.startsWith('55') ? formattedPhone : '55' + formattedPhone;
-                          const text = `Olá ${cust.name}, tudo bem? Passando para lembrar que você tem um saldo de R$ ${stats.pendingDebt.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} em aberto com o Semijoias Pro. Quando puder, me avise! 🌸`;
+                          const text = `Olá ${cust.name}, tudo bem? Passando para lembrar que você tem um saldo de R$ ${stats.pendingDebt.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} em aberto com a nossa loja. Quando puder, me avise! 🌸`;
                           const encodedText = encodeURIComponent(text);
                           window.open(`https://wa.me/${cleanPhone}?text=${encodedText}`, '_blank');
                         }}

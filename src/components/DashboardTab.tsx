@@ -5,9 +5,10 @@
 
 import React, { useState, useMemo } from 'react';
 import { CashEntry, Sale, Product } from '../types';
-import { 
-  DollarSign, TrendingUp, ArrowDownLeft, ArrowUpRight, Plus, 
-  Trash2, Search, Calendar, FileText, BarChart2, PieChart, Sparkles, X, Clock
+import { formatBRL } from '../lib/money';
+import {
+  DollarSign, TrendingUp, ArrowDownLeft, ArrowUpRight, Plus,
+  Search, Calendar, FileText, BarChart2, PieChart, Sparkles, X, Clock
 } from 'lucide-react';
 
 interface DashboardTabProps {
@@ -39,13 +40,6 @@ export default function DashboardTab({
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
-
-  const formatBRL = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-    }).format(value);
-  };
 
   const handleAmountChange = (inputValue: string) => {
     const cleanValue = inputValue.replace(/\D/g, '');
@@ -181,11 +175,11 @@ export default function DashboardTab({
     const map: Record<string, number> = {};
     
     sales.forEach(sale => {
+      if (sale.status === 'order') return; // pedidos do catálogo não são faturamento
       sale.items.forEach(item => {
-        // Find product to check category if not on item (we saved productName, but wait, let's map by product ID or look up from catalog)
         const prod = products.find(p => p.id === item.productId);
         const cat = prod ? prod.category : 'Outros';
-        
+
         map[cat] = (map[cat] || 0) + (item.price * item.quantity);
       });
     });
@@ -267,16 +261,25 @@ export default function DashboardTab({
       return;
     }
 
+    // Neutraliza CSV injection: valores iniciados por = + - @ (ou tab/CR) podem
+    // ser interpretados como fórmula pelo Excel/Sheets. Prefixamos com aspa e
+    // escapamos aspas internas.
+    const sanitizeCSV = (value: string | number) => {
+      const s = String(value ?? '');
+      const guarded = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
+      return guarded.replace(/"/g, '""');
+    };
+
     // Header row
     let csvContent = 'ID,Data,Tipo,Valor (R$),Meio de Pagamento,Descricao,Criado Em\n';
 
     // Data rows
     cashEntries.forEach(entry => {
       const typeLabel = entry.type === 'in' ? 'Entrada' : 'Saida';
-      const paymentLabel = entry.paymentMethod || 'Dinheiro';
-      const description = entry.description.replace(/"/g, '""');
-      
-      csvContent += `"${entry.id}","${entry.date}","${typeLabel}",${entry.amount},"${paymentLabel}","${description}","${entry.createdAt}"\n`;
+      const paymentLabel = sanitizeCSV(entry.paymentMethod || 'Dinheiro');
+      const description = sanitizeCSV(entry.description);
+
+      csvContent += `"${sanitizeCSV(entry.id)}","${sanitizeCSV(entry.date)}","${typeLabel}",${entry.amount},"${paymentLabel}","${description}","${sanitizeCSV(entry.createdAt)}"\n`;
     });
 
     // Create download link
@@ -859,26 +862,5 @@ export default function DashboardTab({
         </div>
       )}
     </div>
-  );
-}
-
-// Simple custom inline helper clock icon since lucide-react standard may have slight variations
-function ClockIcon(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      {...props}
-    >
-      <circle cx="12" cy="12" r="10" />
-      <polyline points="12 6 12 12 16 14" />
-    </svg>
   );
 }

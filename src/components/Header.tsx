@@ -27,7 +27,7 @@ export default function Header({ brandConfig, isCompact, hasPassword, onLogout }
             referrerPolicy="no-referrer"
           />
           <div>
-            <h1 id="brand-name-compact" className="font-serif font-bold text-lg text-neutral-800 tracking-tight flex items-center gap-1">
+            <h1 id="brand-name-compact" className="brand-wordmark text-xl text-neutral-800 flex items-center gap-1.5">
               {brandConfig.brandName}
               <Sparkles className="w-3.5 h-3.5 text-brand-olive fill-brand-porcelain" />
             </h1>
@@ -99,7 +99,7 @@ export default function Header({ brandConfig, isCompact, hasPassword, onLogout }
 
             {/* Name & Details */}
             <div className="flex-1">
-              <h2 id="brand-name" className="font-serif font-bold text-2xl text-neutral-800 tracking-tight">
+              <h2 id="brand-name" className="brand-wordmark text-3xl text-neutral-800">
                 {brandConfig.brandName}
               </h2>
               <p className="text-brand-rosewood text-sm font-medium mt-0.5 font-serif italic">
