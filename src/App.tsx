@@ -26,7 +26,7 @@ import {
 } from './lib/db';
 import { supabaseEnabled } from './lib/supabase';
 import { isAuthAvailable, subscribeAuth, signOutAdmin } from './lib/auth';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
 import { RefreshCw } from 'lucide-react';
 
 export default function App() {
@@ -355,18 +355,19 @@ export default function App() {
 
         {/* Outer scrolling layout wrapper */}
         <div className="flex-1 px-4 py-6 max-w-5xl mx-auto w-full">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={activeTab}
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -15 }}
-              transition={{ duration: 0.25, ease: 'easeOut' }}
-              className="h-full"
-            >
-              {renderTabContent()}
-            </motion.div>
-          </AnimatePresence>
+          {/* Anima apenas a entrada de cada aba. Não usamos AnimatePresence
+              com mode="wait" aqui: a animação de saída podia não completar
+              (deadlock), deixando a aba anterior travada na tela e impedindo
+              a nova aba (ex.: Vendas) de montar. */}
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25, ease: 'easeOut' }}
+            className="h-full"
+          >
+            {renderTabContent()}
+          </motion.div>
         </div>
       </main>
     </div>
